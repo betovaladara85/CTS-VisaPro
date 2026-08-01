@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTS - Panel Administrativo</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap');
+    :root {
+      --cts-dark: #2C1810;
+      --cts-dark-light: #3D2A1E;
+      --cts-gold: #C4A265;
+      --cts-gold-light: #D4B87A;
+      --cts-gold-pale: #EDE2CF;
+      --cts-cream: #FAF8F5;
+      --cts-beige: #F5F0EB;
+      --cts-beige-dark: #E8E0D8;
+      --cts-text: #2C1810;
+      --cts-text-mid: #6B5B4F;
+      --cts-text-light: #9A8B7E;
+      --cts-white: #FFFFFF;
+      --cts-success: #2D7D46;
+      --cts-success-light: #E8F5ED;
+      --cts-warning: #8B7D3C;
+      --cts-warning-light: #F5F0E0;
+      --cts-danger: #8B2500;
+      --cts-danger-light: #FDEEE8;
+      --radius: 6px;
+      --radius-sm: 4px;
+      --shadow: 0 1px 3px rgba(44,24,16,0.04);
+      --shadow-md: 0 2px 8px rgba(44,24,16,0.06);
+      --shadow-lg: 0 8px 24px rgba(44,24,16,0.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--cts-cream);
+      color: var(--cts-text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+    h1, h2, h3, h4 { font-family: 'Playfair Display', serif; font-weight: 600; color: var(--cts-dark); }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: fixed; left: 0; top: 0; bottom: 0; width: 240px;
+      background: var(--cts-dark);
+      display: flex; flex-direction: column; z-index: 100;
+    }
+    .sidebar::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: var(--cts-gold);
+    }
+    .sidebar-brand {
+      padding: 28px 20px 24px;
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid rgba(196,162,101,0.12);
+    }
+    .sidebar-brand .brand-icon {
+      width: 34px; height: 34px; flex-shrink: 0;
+      background: var(--cts-gold);
+      border-radius: 4px; display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700;
+      color: var(--cts-dark); letter-spacing: 0.5px;
+    }
+    .sidebar-brand .brand-text { display: flex; flex-direction: column; gap: 1px; }
+    .sidebar-brand .brand-name {
+      font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 600;
+      color: var(--cts-gold); letter-spacing: 1px;
+    }
+    .sidebar-brand .brand-sub {
+      font-size: 8px; color: rgba(196,162,101,0.45); font-weight: 500;
+      letter-spacing: 2px; text-transform: uppercase;
+    }
+    .sidebar-nav { flex: 1; padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; }
+    .sidebar-nav a {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      border-radius: var(--radius-sm); color: rgba(255,255,255,0.45); text-decoration: none;
+      font-size: 13px; font-weight: 500; transition: all 0.2s; cursor: pointer;
+    }
+    .sidebar-nav a:hover { background: rgba(196,162,101,0.08); color: rgba(255,255,255,0.8); }
+    .sidebar-nav a.active { background: rgba(196,162,101,0.12); color: var(--cts-gold); font-weight: 600; }
+    .sidebar-nav a i { width: 18px; text-align: center; font-size: 14px; opacity: 0.8; }
+    .sidebar-footer {
+      padding: 14px 20px; border-top: 1px solid rgba(196,162,101,0.1);
+      font-size: 9px; color: rgba(255,255,255,0.2); text-align: center;
+      letter-spacing: 1.5px; text-transform: uppercase;
+    }
+
+    /* ── Main ── */
+    .main { margin-left: 240px; padding: 32px 40px; max-width: 1300px; position: relative; z-index: 1; }
+    .page-header { margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid var(--cts-beige-dark); }
+    .page-header h1 { font-size: 26px; font-weight: 700; color: var(--cts-dark); letter-spacing: -0.3px; }
+    .page-header p { font-size: 13px; color: var(--cts-text-light); margin-top: 4px; }
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn 0.25s ease; }
+
+    /* ── Stats ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .stat-card {
+      background: var(--cts-white); border-radius: var(--radius); padding: 20px;
+      box-shadow: var(--shadow); border: 1px solid var(--cts-beige-dark);
+      position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .stat-card:nth-child(1)::before { background: var(--cts-dark); }
+    .stat-card:nth-child(2)::before { background: var(--cts-gold); }
+    .stat-card:nth-child(3)::before { background: var(--cts-success); }
+    .stat-card:nth-child(4)::before { background: var(--cts-danger); }
+    .stat-card .stat-label { font-size: 10px; color: var(--cts-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 700; margin-top: 6px; color: var(--cts-dark); }
+    .stat-card .stat-icon { float: right; font-size: 22px; opacity: 0.08; color: var(--cts-dark); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px;
+      border-radius: var(--radius-sm); border: none; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; text-decoration: none;
+      letter-spacing: 0.3px;
+    }
+    .btn-primary { background: var(--cts-dark); color: var(--cts-gold); }
+    .btn-primary:hover { background: var(--cts-dark-light); }
+    .btn-success { background: var(--cts-success); color: white; }
+    .btn-outline { background: var(--cts-white); color: var(--cts-text-mid); border: 1px solid var(--cts-beige-dark); }
+    .btn-outline:hover { background: var(--cts-beige); border-color: var(--cts-gold); }
+    .btn-danger { background: var(--cts-danger); color: white; }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+    .btn-whatsapp { background: #25D366; color: white; }
+    .btn-whatsapp:hover { background: #1da851; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--cts-white); border-radius: var(--radius); box-shadow: var(--shadow);
+      border: 1px solid var(--cts-beige-dark); overflow: hidden;
+    }
+    .card + .card { margin-top: 16px; }
+    .card-body { padding: 20px; }
+    .card-header {
+      padding: 12px 20px; border-bottom: 1px solid var(--cts-beige);
+      font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: space-between;
+      color: var(--cts-text-mid); background: var(--cts-beige);
+    }
+
+    /* ── Forms ── */
+    input, select, textarea {
+      width: 100%; padding: 9px 12px; border: 1px solid var(--cts-beige-dark);
+      border-radius: var(--radius-sm); font-size: 13px; color: var(--cts-text);
+      background: var(--cts-white); transition: all 0.2s; font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--cts-gold); box-shadow: 0 0 0 2px rgba(196,162,101,0.12); }
+    textarea { resize: vertical; min-height: 80px; }
+    label { display: block; font-size: 11px; font-weight: 600; color: var(--cts-text-mid); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.8px; }
+    .form-group { margin-bottom: 14px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+    /* ── Tags ── */
+    .tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+    .tag-proceso { background: var(--cts-warning-light); color: var(--cts-warning); }
+    .tag-aprobado { background: var(--cts-success-light); color: var(--cts-success); }
+    .tag-rechazado { background: var(--cts-danger-light); color: var(--cts-danger); }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--cts-beige-dark); border-radius: var(--radius); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 10px 14px; font-size: 10px; font-weight: 600; color: var(--cts-text-light); text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid var(--cts-beige-dark); background: var(--cts-beige); }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--cts-beige); color: var(--cts-text-mid); }
+    tr:hover td { background: var(--cts-cream); }
+    tr { cursor: pointer; }
+
+    /* ── Search & Filters ── */
+    .search-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .search-bar input { max-width: 300px; }
+    .filter-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; }
+    .filter-pill {
+      padding: 4px 14px; border-radius: 3px; font-size: 10px; font-weight: 600;
+      border: 1px solid var(--cts-beige-dark); background: var(--cts-white); color: var(--cts-text-light);
+      cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .filter-pill:hover { border-color: var(--cts-gold); color: var(--cts-gold); }
+    .filter-pill.active { background: var(--cts-dark); color: var(--cts-gold); border-color: var(--cts-dark); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(44,24,16,0.4); z-index: 200;
+      display: none; align-items: center; justify-content: center; padding: 20px;
+      backdrop-filter: blur(2px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--cts-white); border-radius: var(--radius); box-shadow: var(--shadow-lg); max-width: 750px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid var(--cts-beige-dark); }
+    .modal-header {
+      padding: 16px 24px; border-bottom: 1px solid var(--cts-beige);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 16px; font-weight: 600; position: sticky; top: 0;
+      background: var(--cts-beige); z-index: 1; font-family: 'Playfair Display', serif;
+      color: var(--cts-dark);
+    }
+    .modal-header .close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--cts-text-light); padding: 0 4px; }
+    .modal-body { padding: 24px; }
+
+    /* ── Steps ── */
+    .steps { display: flex; gap: 0; margin-bottom: 28px; border: 1px solid var(--cts-beige-dark); border-radius: var(--radius); overflow: hidden; }
+    .step { flex: 1; text-align: center; padding: 10px; font-size: 11px; font-weight: 600; color: var(--cts-text-light); background: var(--cts-beige); letter-spacing: 0.3px; }
+    .step + .step { border-left: 1px solid var(--cts-beige-dark); }
+    .step.active { color: var(--cts-gold); background: var(--cts-dark); }
+    .step.done { color: white; background: var(--cts-success); }
+    .step .step-num { display: inline-flex; width: 20px; height: 20px; border-radius: 50%; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; background: var(--cts-beige-dark); color: var(--cts-text-light); margin-right: 5px; }
+    .step.active .step-num { background: rgba(196,162,101,0.25); color: var(--cts-gold); }
+    .step.done .step-num { background: rgba(255,255,255,0.2); color: white; }
+
+    /* ── Client Detail ── */
+    .client-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .client-detail-grid .field-label { font-size: 10px; color: var(--cts-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .client-detail-grid .field-value { font-size: 14px; color: var(--cts-text); margin-top: 1px; }
+    .progress-bar { height: 5px; background: var(--cts-beige-dark); border-radius: 2px; overflow: hidden; margin: 10px 0; }
+    .progress-bar-fill { height: 100%; background: var(--cts-gold); border-radius: 2px; transition: width 0.3s; }
+
+    /* ── Checklist ── */
+    .checklist-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border: 1px solid var(--cts-beige-dark); border-radius: var(--radius-sm); margin-bottom: 6px; background: var(--cts-white); cursor: pointer; transition: all 0.2s; }
+    .checklist-item:hover { border-color: var(--cts-gold); }
+    .checklist-item.done { background: var(--cts-success-light); border-color: var(--cts-success); }
+    .checklist-item .cl-text { flex: 1; }
+    .checklist-item .cl-title { font-weight: 600; font-size: 13px; }
+    .checklist-item .cl-desc { font-size: 11px; color: var(--cts-text-light); margin-top: 2px; }
+
+    /* ── Templates ── */
+    .template-card {
+      background: var(--cts-white); border: 1px solid var(--cts-beige-dark);
+      padding: 16px; margin-bottom: 10px; transition: all 0.2s;
+      border-left: 3px solid var(--cts-gold);
+    }
+    .template-card:hover { box-shadow: var(--shadow-md); border-left-color: var(--cts-dark); }
+    .template-card .temp-title { font-weight: 600; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; color: var(--cts-dark); }
+    .template-card .temp-text { font-size: 13px; color: var(--cts-text-mid); line-height: 1.5; white-space: pre-wrap; }
+    .template-card .temp-actions { float: right; display: flex; gap: 4px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--cts-dark); color: var(--cts-gold); padding: 12px 20px;
+      border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
+      box-shadow: var(--shadow-lg); z-index: 300;
+      transform: translateY(100px); opacity: 0; transition: all 0.3s;
+      border-left: 3px solid var(--cts-gold);
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── Misc ── */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--cts-text-light); }
+    .empty-state i { font-size: 44px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-state p { font-size: 14px; }
+    .inline-flex { display: flex; align-items: center; gap: 8px; }
+    .flex-between { display: flex; align-items: center; justify-content: space-between; }
+    .text-center { text-align: center; }
+    .hidden { display: none; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-4 { margin-bottom: 16px; }
+    .mt-2 { margin-top: 8px; }
+    .mt-4 { margin-top: 16px; }
+    .w-full { width: 100%; }
+    .skeleton {
+      background: linear-gradient(90deg, var(--cts-beige) 25%, var(--cts-cream) 50%, var(--cts-beige) 75%);
+      background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px;
+    }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── WhatsApp ── */
+    .whatsapp-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .whatsapp-option {
+      padding: 10px; border: 1px solid var(--cts-beige-dark); border-radius: var(--radius-sm);
+      cursor: pointer; font-size: 13px; transition: all 0.2s;
+    }
+    .whatsapp-option:hover { border-color: #25D366; background: #f0fdf4; }
+    .whatsapp-option.selected { border-color: #25D366; background: #f0fdf4; }
+
+    /* ── Decorative ── */
+    .diamond-separator {
+      display: flex; align-items: center; gap: 12px; margin: 20px 0;
+      color: var(--cts-gold); font-size: 8px;
+    }
+    .diamond-separator::before, .diamond-separator::after {
+      content: ''; flex: 1; height: 1px; background: var(--cts-beige-dark);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { width: 60px; }
+      .sidebar-brand .brand-text, .sidebar-nav a span, .sidebar-footer { display: none; }
+      .sidebar-brand { justify-content: center; padding: 16px 0; }
+      .sidebar-brand .brand-icon { font-size: 12px; width: 30px; height: 30px; }
+      .sidebar-nav a { justify-content: center; padding: 12px; }
+      .main { margin-left: 60px; padding: 16px; }
+      .form-row, .form-row-3, .client-detail-grid, .whatsapp-selector { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">CTS</div>
+    <div class="brand-text">
+      <div class="brand-name">CTS</div>
+      <div class="brand-sub">Visa Services</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a class="active" data-page="dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>
+    <a data-page="clientes"><i class="fas fa-users"></i><span>Clientes</span></a>
+    <a data-page="nuevo"><i class="fas fa-user-plus"></i><span>Nuevo Cliente</span></a>
+    <a data-page="checklist"><i class="fas fa-list-check"></i><span>Checklist DS-160</span></a>
+    <a data-page="mensajes"><i class="fas fa-comment-dots"></i><span>Mensajes Rápidos</span></a>
+    <a data-page="exportar"><i class="fas fa-file-export"></i><span>Exportar</span></a>
+    <a href="/logout" style="margin-top:auto"><i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span></a>
+  </nav>
+  <div class="sidebar-footer"><%= user.nombre %> &middot; CTS</div>
+</div>
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <p>Resumen en tiempo real de tu gestión de visas</p>
+    </div>
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-label">Total Clientes</div><div class="stat-value" id="statTotal">-</div></div>
+      <div class="stat-card"><div class="stat-icon"><i class="fas fa-spinner"></i></div><div class="stat-label">En Proceso</div><div class="stat-value" style="color:var(--warning)" id="statProceso">-</div></div>
+      <div class="stat-card"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-label">Aprobados</div><div class="stat-value" style="color:var(--success)" id="statAprobado">-</div></div>
+      <div class="stat-card"><div class="stat-icon"><i class="fas fa-times-circle"></i></div><div class="stat-label">Rechazados</div><div class="stat-value" style="color:var(--danger)" id="statRechazado">-</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">Clientes por Mes</div>
+      <div class="card-body"><canvas id="chartMensual" height="200"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header">Últimos Clientes Registrados</div>
+      <div class="card-body" id="recentClients"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Cargando...</p></div></div>
+    </div>
+  </div>
+
+  <!-- CLIENTES -->
+  <div id="page-clientes" class="page">
+    <div class="page-header flex-between">
+      <div><h1>Clientes</h1><p>Gestiona todos tus clientes y sus expedientes</p></div>
+      <button class="btn btn-primary" onclick="navigate('nuevo')"><i class="fas fa-plus"></i> Nuevo Cliente</button>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="filter-pills">
+          <span class="filter-pill active" data-filter="all" onclick="setFilter(this)">Todos</span>
+          <span class="filter-pill" data-filter="proceso" onclick="setFilter(this)">En Proceso</span>
+          <span class="filter-pill" data-filter="aprobado" onclick="setFilter(this)">Aprobados</span>
+          <span class="filter-pill" data-filter="rechazado" onclick="setFilter(this)">Rechazados</span>
+        </div>
+        <div class="search-bar">
+          <input type="text" id="searchInput" placeholder="Buscar por nombre, pasaporte o email..." oninput="renderClientes()">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('searchInput').value='';renderClientes()"><i class="fas fa-times"></i></button>
+          <span style="font-size:12px;color:var(--gray-400);align-self:center" id="clientCount"></span>
+        </div>
+        <div class="table-wrap" id="clientesTableWrap"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Cargando...</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NUEVO CLIENTE -->
+  <div id="page-nuevo" class="page">
+    <div class="page-header"><h1>Nuevo Cliente</h1><p>Captura todos los datos necesarios para el DS-160</p></div>
+    <div class="card">
+      <div class="card-body">
+        <div class="steps" id="formSteps">
+          <div class="step active" data-step="1"><span class="step-num">1</span>Datos Personales</div>
+          <div class="step" data-step="2"><span class="step-num">2</span>Contacto & Viaje</div>
+          <div class="step" data-step="3"><span class="step-num">3</span>Situación Migratoria</div>
+        </div>
+        <form id="clientForm" onsubmit="return false;">
+          <div class="form-step fade-in" data-step="1">
+            <div class="form-row">
+              <div class="form-group"><label>Nombre *</label><input type="text" id="fNombre" required></div>
+              <div class="form-group"><label>Apellido *</label><input type="text" id="fApellido" required></div>
+            </div>
+            <div class="form-row-3">
+              <div class="form-group"><label>Fecha de Nacimiento *</label><input type="date" id="fFechaNac" required></div>
+              <div class="form-group"><label>Lugar de Nacimiento</label><input type="text" id="fLugarNac"></div>
+              <div class="form-group"><label>Nacionalidad</label><input type="text" id="fNacionalidad" value="Mexicana"></div>
+            </div>
+            <div class="form-row-3">
+              <div class="form-group"><label>Género</label><select id="fGenero"><option value="">Seleccionar...</option><option>Masculino</option><option>Femenino</option></select></div>
+              <div class="form-group"><label>Estado Civil</label><select id="fEstadoCivil"><option value="">Seleccionar...</option><option>Soltero/a</option><option>Casado/a</option><option>Divorciado/a</option><option>Viudo/a</option></select></div>
+              <div class="form-group"><label>Ocupación</label><input type="text" id="fOcupacion"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Número de Pasaporte *</label><input type="text" id="fPasaporte" required></div>
+              <div class="form-group"><label>País de Emisión</label><input type="text" id="fPaisEmision" value="México"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Fecha de Expedición</label><input type="date" id="fFechaExp"></div>
+              <div class="form-group"><label>Fecha de Vencimiento *</label><input type="date" id="fFechaVen" required></div>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">Siguiente <i class="fas fa-arrow-right"></i></button>
+          </div>
+          <div class="form-step hidden fade-in" data-step="2">
+            <h3 style="font-size:15px;margin-bottom:12px;color:var(--gray-600)">Información de Contacto</h3>
+            <div class="form-row">
+              <div class="form-group"><label>Email *</label><input type="email" id="fEmail" required></div>
+              <div class="form-group"><label>Teléfono *</label><input type="tel" id="fTelefono" required></div>
+            </div>
+            <div class="form-group"><label>Dirección</label><input type="text" id="fDireccion"></div>
+            <div class="form-row-3">
+              <div class="form-group"><label>Ciudad</label><input type="text" id="fCiudad"></div>
+              <div class="form-group"><label>Estado</label><input type="text" id="fEstado"></div>
+              <div class="form-group"><label>Código Postal</label><input type="text" id="fCodigoPostal"></div>
+            </div>
+            <h3 style="font-size:15px;margin:16px 0 12px;color:var(--gray-600)">Información del Viaje</h3>
+            <div class="form-row-3">
+              <div class="form-group"><label>Propósito del Viaje</label><select id="fProposito"><option value="">Seleccionar...</option><option>Turismo</option><option>Negocios</option><option>Estudios</option><option>Trabajo</option><option>Visita familiar</option><option>Médico</option></select></div>
+              <div class="form-group"><label>Fecha Estimada</label><input type="date" id="fFechaViaje"></div>
+              <div class="form-group"><label>Duración (días)</label><input type="number" id="fDuracion"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Alojamiento en EE.UU.</label><input type="text" id="fAlojamiento" placeholder="Hotel / Dirección"></div>
+              <div class="form-group"><label>Gastos Pagados Por</label><select id="fGastos"><option value="">Seleccionar...</option><option>Si mismo</option><option>Familiar</option><option>Empresa</option><option>Otro</option></select></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button type="button" class="btn btn-outline" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Atrás</button>
+              <button type="button" class="btn btn-primary" onclick="nextStep()">Siguiente <i class="fas fa-arrow-right"></i></button>
+            </div>
+          </div>
+          <div class="form-step hidden fade-in" data-step="3">
+            <h3 style="font-size:15px;margin-bottom:12px;color:var(--gray-600)">Situación Migratoria</h3>
+            <div class="form-group"><label>¿Ha viajado antes a EE.UU.?</label><select id="fViajePrev"><option value="">Seleccionar...</option><option>Si</option><option>No</option></select></div>
+            <div class="form-group"><label>¿Ha tenido visa americana anteriormente?</label><select id="fVisaPrevia"><option value="">Seleccionar...</option><option>Si</option><option>No</option></select></div>
+            <div class="form-group"><label>¿Le han negado alguna vez una visa?</label><select id="fNegacion"><option value="">Seleccionar...</option><option>Si</option><option>No</option></select></div>
+            <div class="form-group"><label>¿Tiene familiares en EE.UU.?</label><select id="fFamiliares"><option value="">Seleccionar...</option><option>Si</option><option>No</option></select></div>
+            <div class="form-group"><label>Notas adicionales</label><textarea id="fNotas" placeholder="Información relevante para el caso..."></textarea></div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button type="button" class="btn btn-outline" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Atrás</button>
+              <button type="button" class="btn btn-success" onclick="guardarCliente()"><i class="fas fa-save"></i> Guardar Cliente</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECKLIST DS-160 -->
+  <div id="page-checklist" class="page">
+    <div class="page-header"><h1>Checklist DS-160</h1><p>Las 12 secciones del formulario DS-160 con barra de progreso</p></div>
+    <div class="card">
+      <div class="card-body">
+        <div class="flex-between mb-2">
+          <span style="font-weight:600;font-size:15px">Progreso General</span>
+          <span style="font-weight:600;font-size:15px" id="checklistPercent">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill" id="checklistProgress" style="width:0%"></div></div>
+        <div style="margin-top:16px" id="checklistItems"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENSAJES RAPIDOS -->
+  <div id="page-mensajes" class="page">
+    <div class="page-header flex-between">
+      <div><h1>Mensajes Rápidos</h1><p>Plantillas editables para WhatsApp. Haz clic en cualquier campo para editarlo.</p></div>
+      <button class="btn btn-primary" onclick="nuevaPlantilla()"><i class="fas fa-plus"></i> Nueva Plantilla</button>
+    </div>
+    <div class="card">
+      <div class="card-body" id="templatesContainer"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Cargando...</p></div></div>
+    </div>
+  </div>
+
+  <!-- EXPORTAR -->
+  <div id="page-exportar" class="page">
+    <div class="page-header"><h1>Exportar</h1><p>Descarga todos tus clientes en Excel o CSV con un clic</p></div>
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr">
+      <div class="card">
+        <div class="card-body text-center" style="padding:40px">
+          <i class="fas fa-file-excel" style="font-size:48px;color:var(--success);margin-bottom:12px"></i>
+          <h3 style="margin-bottom:8px">Exportar a Excel</h3>
+          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Descarga todos los datos en formato .xlsx</p>
+          <button class="btn btn-success" onclick="exportarExcel()"><i class="fas fa-download"></i> Descargar Excel</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body text-center" style="padding:40px">
+          <i class="fas fa-file-csv" style="font-size:48px;color:var(--primary);margin-bottom:12px"></i>
+          <h3 style="margin-bottom:8px">Exportar a CSV</h3>
+          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Descarga todos los datos en formato .csv</p>
+          <button class="btn btn-primary" onclick="exportarCSV()"><i class="fas fa-download"></i> Descargar CSV</button>
+        </div>
+      </div>
+    </div>
+    <div class="card mt-4">
+      <div class="card-header">Vista Previa de Datos a Exportar</div>
+      <div class="card-body">
+        <p style="font-size:14px;color:var(--gray-500);margin-bottom:12px"><span id="exportCount">0</span> clientes listos para exportar</p>
+        <div class="table-wrap" id="exportPreview"><div class="empty-state"><i class="fas fa-table"></i><p>No hay datos</p></div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL CLIENTE -->
+<div class="modal-overlay" id="clientModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modalTitle">Expediente del Cliente</span>
+      <button class="close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- MODAL WHATSAPP -->
+<div class="modal-overlay" id="whatsappModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span><i class="fab fa-whatsapp" style="color:#25D366"></i> Enviar WhatsApp</span>
+      <button class="close" onclick="closeWAModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="whatsappModalBody"></div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR PLANTILLA -->
+<div class="modal-overlay" id="templateModal">
+  <div class="modal" style="max-width:550px">
+    <div class="modal-header">
+      <span id="templateModalTitle"><i class="fas fa-edit"></i> Editar Plantilla</span>
+      <button class="close" onclick="closeTemplateModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="templateModalBody"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const SECTIONES_DS160 = [
+    { id: 1, title: 'Datos Personales', desc: 'Nombre completo, fecha y lugar de nacimiento, género, estado civil, nacionalidad.' },
+    { id: 2, title: 'Información del Pasaporte', desc: 'Número de pasaporte, país emisor, fecha de expedición y vencimiento.' },
+    { id: 3, title: 'Información de Contacto', desc: 'Dirección actual, número de teléfono, email, redes sociales si aplica.' },
+    { id: 4, title: 'Información del Viaje', desc: 'Propósito del viaje, fecha estimada, duración, alojamiento previsto.' },
+    { id: 5, title: 'Información de Acompañantes', desc: 'Personas que viajan con el solicitante, si aplica.' },
+    { id: 6, title: 'Historial de Viajes Previos', desc: 'Viajes anteriores a EE.UU., fechas, duración, motivo.' },
+    { id: 7, title: 'Historial de Visas', desc: 'Visas americanas anteriores, número, fecha de emisión, si fueron renovadas.' },
+    { id: 8, title: 'Información de Familiares', desc: 'Familiares en EE.UU.: padres, hijos, cónyuge. Datos de contacto y estatus migratorio.' },
+    { id: 9, title: 'Información Laboral', desc: 'Empleo actual y previos (últimos 5 años): empresa, cargo, fechas, salario.' },
+    { id: 10, title: 'Información Educativa', desc: 'Nivel de estudios, instituciones, fechas de asistencia, títulos obtenidos.' },
+    { id: 11, title: 'Antecedentes de Seguridad', desc: 'Preguntas de seguridad: afiliaciones, problemas legales, enfermedades contagiosas.' },
+    { id: 12, title: 'Carga de Documentos', desc: 'Foto tipo pasaporte, documentos de soporte, citas previas si aplica.' }
+  ];
+
+  let currentStep = 1;
+  let currentPage = 'dashboard';
+
+  async function api(url, opts = {}) {
+    try {
+      const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      if (res.redirected) { window.location.href = res.url; return null; }
+      if (opts.download) return res;
+      return res.json();
+    } catch { return null; }
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function timeAgo(iso) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Ahora';
+    if (mins < 60) return `Hace ${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `Hace ${hrs}h`;
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return `Hace ${days}d`;
+    return new Date(iso).toLocaleDateString('es-MX');
+  }
+
+  function navigate(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    const link = document.querySelector(`.sidebar-nav a[data-page="${page}"]`);
+    if (link) link.classList.add('active');
+    currentPage = page;
+    if (page === 'dashboard') renderDashboard();
+    if (page === 'clientes') renderClientes();
+    if (page === 'checklist') renderChecklist();
+    if (page === 'mensajes') renderTemplates();
+    if (page === 'exportar') renderExport();
+  }
+  document.querySelectorAll('.sidebar-nav a[data-page]').forEach(a => {
+    a.addEventListener('click', () => navigate(a.dataset.page));
+  });
+
+  // ---- DASHBOARD ----
+  async function renderDashboard() {
+    const stats = await api('/api/admin/stats') || { total: 0, proceso: 0, aprobado: 0, rechazado: 0 };
+    document.getElementById('statTotal').textContent = stats.total;
+    document.getElementById('statProceso').textContent = stats.proceso;
+    document.getElementById('statAprobado').textContent = stats.aprobado;
+    document.getElementById('statRechazado').textContent = stats.rechazado;
+
+    // Chart
+    renderChart();
+
+    const clients = await api('/api/admin/clientes') || [];
+    const recent = clients.slice(-5).reverse();
+    const container = document.getElementById('recentClients');
+    if (!recent.length) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Aún no hay clientes registrados</p></div>';
+      return;
+    }
+    let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Pasaporte</th><th>Registro</th><th>Estado</th></tr></thead><tbody>';
+    recent.forEach(c => {
+      const tc = c.estado === 'aprobado' ? 'tag-aprobado' : c.estado === 'rechazado' ? 'tag-rechazado' : 'tag-proceso';
+      const tl = c.estado === 'aprobado' ? 'Aprobado' : c.estado === 'rechazado' ? 'Rechazado' : 'En Proceso';
+      html += `<tr onclick="verCliente(${c.id})"><td><strong>${c.nombre} ${c.apellido}</strong></td><td>${c.pasaporte}</td><td>${c.fecha_registro}</td><td><span class="tag ${tc}">${tl}</span></td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+
+  let chartInstance = null;
+  async function renderChart() {
+    const data = await api('/api/admin/stats/mensual') || [];
+    const labels = data.map(d => d.mes);
+    const values = data.map(d => d.total);
+    const ctx = document.getElementById('chartMensual').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Clientes registrados',
+          data: values,
+          backgroundColor: '#1a56db',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ---- CLIENTES ----
+  function setFilter(el) {
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('statusFilter').value = el.dataset.filter;
+    renderClientes();
+  }
+
+  async function renderClientes() {
+    const q = document.getElementById('searchInput').value;
+    const estado = document.querySelector('.filter-pill.active')?.dataset?.filter || 'all';
+    const clients = await api(`/api/admin/clientes?q=${encodeURIComponent(q)}&estado=${encodeURIComponent(estado)}`) || [];
+    const container = document.getElementById('clientesTableWrap');
+    document.getElementById('clientCount').textContent = `${clients.length} cliente${clients.length !== 1 ? 's' : ''}`;
+    if (!clients.length) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>No se encontraron clientes</p></div>';
+      return;
+    }
+    let html = '<table><thead><tr><th>Nombre</th><th>Pasaporte</th><th>Email</th><th>Teléfono</th><th>Registro</th><th>Actividad</th><th>Estado</th></tr></thead><tbody>';
+    clients.forEach(c => {
+      const tc = c.estado === 'aprobado' ? 'tag-aprobado' : c.estado === 'rechazado' ? 'tag-rechazado' : 'tag-proceso';
+      const tl = c.estado === 'aprobado' ? 'Aprobado' : c.estado === 'rechazado' ? 'Rechazado' : 'En Proceso';
+      const ultima = c.ultima_vista ? timeAgo(c.ultima_vista) : '-';
+      html += `<tr onclick="verCliente(${c.id})"><td><strong>${c.nombre} ${c.apellido}</strong></td><td>${c.pasaporte}</td><td>${c.email_cliente || c.email}</td><td>${c.telefono}</td><td>${c.fecha_registro}</td><td style="font-size:12px;color:var(--gray-500)">${ultima}</td><td><span class="tag ${tc}">${tl}</span></td></tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  // ---- NUEVO CLIENTE ----
+  function nextStep() {
+    if (currentStep < 3) {
+      document.querySelector(`.form-step[data-step="${currentStep}"]`).classList.add('hidden');
+      document.querySelector(`.step[data-step="${currentStep}"]`).classList.remove('active');
+      document.querySelector(`.step[data-step="${currentStep}"]`).classList.add('done');
+      currentStep++;
+      document.querySelector(`.form-step[data-step="${currentStep}"]`).classList.remove('hidden');
+      document.querySelector(`.step[data-step="${currentStep}"]`).classList.add('active');
+    }
+  }
+  function prevStep() {
+    if (currentStep > 1) {
+      document.querySelector(`.form-step[data-step="${currentStep}"]`).classList.add('hidden');
+      document.querySelector(`.step[data-step="${currentStep}"]`).classList.remove('active');
+      currentStep--;
+      document.querySelector(`.form-step[data-step="${currentStep}"]`).classList.remove('hidden');
+      document.querySelector(`.step[data-step="${currentStep}"]`).classList.add('active');
+      document.querySelector(`.step[data-step="${currentStep}"]`).classList.remove('done');
+    }
+  }
+  async function guardarCliente() {
+    const required = ['fNombre','fApellido','fFechaNac','fPasaporte','fFechaVen','fEmail','fTelefono'];
+    for (const id of required) {
+      if (!document.getElementById(id).value.trim()) { toast('Completa todos los campos obligatorios (*)'); return; }
+    }
+    const data = {
+      nombre: document.getElementById('fNombre').value.trim(),
+      apellido: document.getElementById('fApellido').value.trim(),
+      fecha_nacimiento: document.getElementById('fFechaNac').value,
+      lugar_nacimiento: document.getElementById('fLugarNac').value.trim(),
+      nacionalidad: document.getElementById('fNacionalidad').value.trim(),
+      genero: document.getElementById('fGenero').value,
+      estado_civil: document.getElementById('fEstadoCivil').value,
+      ocupacion: document.getElementById('fOcupacion').value.trim(),
+      pasaporte: document.getElementById('fPasaporte').value.trim(),
+      pais_emision: document.getElementById('fPaisEmision').value.trim(),
+      fecha_expedicion: document.getElementById('fFechaExp').value,
+      fecha_vencimiento: document.getElementById('fFechaVen').value,
+      email: document.getElementById('fEmail').value.trim(),
+      telefono: document.getElementById('fTelefono').value.trim(),
+      direccion: document.getElementById('fDireccion').value.trim(),
+      ciudad: document.getElementById('fCiudad').value.trim(),
+      estado: document.getElementById('fEstado').value.trim(),
+      codigo_postal: document.getElementById('fCodigoPostal').value.trim(),
+      proposito_viaje: document.getElementById('fProposito').value,
+      fecha_viaje: document.getElementById('fFechaViaje').value,
+      duracion: document.getElementById('fDuracion').value,
+      alojamiento: document.getElementById('fAlojamiento').value.trim(),
+      gastos_pagados_por: document.getElementById('fGastos').value,
+      viaje_previo: document.getElementById('fViajePrev').value,
+      visa_previa: document.getElementById('fVisaPrevia').value,
+      negacion: document.getElementById('fNegacion').value,
+      familiares_usa: document.getElementById('fFamiliares').value,
+      notas: document.getElementById('fNotas').value.trim()
+    };
+    const result = await api('/api/admin/clientes', { method: 'POST', body: JSON.stringify(data) });
+    if (!result) return;
+    document.getElementById('clientForm').reset();
+    currentStep = 1;
+    document.querySelectorAll('.form-step').forEach(s => s.classList.add('hidden'));
+    document.querySelector('.form-step[data-step="1"]').classList.remove('hidden');
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active','done'));
+    document.querySelector('.step[data-step="1"]').classList.add('active');
+    const msg = result.temp_password ? `Cliente registrado. Contraseña temporal: ${result.temp_password}` : 'Cliente registrado';
+    toast(msg);
+    navigate('clientes');
+  }
+
+  // ---- MODAL CLIENTE ----
+  async function verCliente(id) {
+    const c = await api(`/api/admin/clientes/${id}`);
+    if (!c) return;
+    document.getElementById('modalTitle').textContent = `${c.nombre} ${c.apellido}`;
+    const tc = c.estado === 'aprobado' ? 'tag-aprobado' : c.estado === 'rechazado' ? 'tag-rechazado' : 'tag-proceso';
+    const tl = c.estado === 'aprobado' ? 'Aprobado' : c.estado === 'rechazado' ? 'Rechazado' : 'En Proceso';
+
+    let html = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <span class="tag ${tc}" style="font-size:14px;padding:4px 14px">${tl}</span>
+        <div class="inline-flex" style="flex-wrap:wrap">
+          <button class="btn btn-sm btn-whatsapp" onclick="abrirWhatsApp(${c.id})"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+          <button class="btn btn-sm btn-outline" onclick="cambiarEstado(${c.id},'aprobado')"><i class="fas fa-check"></i> Aprobar</button>
+          <button class="btn btn-sm btn-outline" onclick="cambiarEstado(${c.id},'rechazado')"><i class="fas fa-times"></i> Rechazar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarCliente(${c.id})"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      ${c.login_creado ? `<div style="margin-bottom:12px;padding:10px 14px;background:var(--primary-light);border-radius:8px;font-size:13px">Cliente con acceso: ${c.email_login} <button class="btn btn-sm btn-outline" onclick="resetPassword(${c.id})" style="float:right">Resetear contraseña</button></div>` : '<div style="margin-bottom:12px;padding:10px 14px;background:var(--warning-light);border-radius:8px;font-size:13px">Este cliente no tiene acceso al sistema.</div>'}
+      <div class="client-detail-grid">
+        <div class="field"><div class="field-label">Nombre</div><div class="field-value">${c.nombre} ${c.apellido}</div></div>
+        <div class="field"><div class="field-label">Fecha de Nacimiento</div><div class="field-value">${c.fecha_nacimiento || '-'}</div></div>
+        <div class="field"><div class="field-label">Lugar de Nacimiento</div><div class="field-value">${c.lugar_nacimiento || '-'}</div></div>
+        <div class="field"><div class="field-label">Nacionalidad</div><div class="field-value">${c.nacionalidad || '-'}</div></div>
+        <div class="field"><div class="field-label">Género</div><div class="field-value">${c.genero || '-'}</div></div>
+        <div class="field"><div class="field-label">Estado Civil</div><div class="field-value">${c.estado_civil || '-'}</div></div>
+        <div class="field"><div class="field-label">Ocupación</div><div class="field-value">${c.ocupacion || '-'}</div></div>
+        <div class="field"><div class="field-label">Pasaporte</div><div class="field-value">${c.pasaporte}</div></div>
+        <div class="field"><div class="field-label">País Emisión</div><div class="field-value">${c.pais_emision || '-'}</div></div>
+        <div class="field"><div class="field-label">Vencimiento Pasaporte</div><div class="field-value">${c.fecha_vencimiento || '-'}</div></div>
+        <div class="field"><div class="field-label">Email</div><div class="field-value">${c.email}</div></div>
+        <div class="field"><div class="field-label">Teléfono</div><div class="field-value">${c.telefono}</div></div>
+        <div class="field"><div class="field-label">Dirección</div><div class="field-value">${c.direccion || '-'}</div></div>
+        <div class="field"><div class="field-label">Ciudad / Estado</div><div class="field-value">${c.ciudad || ''}${c.estado ? ', ' + c.estado : ''}</div></div>
+        <div class="field"><div class="field-label">Propósito Viaje</div><div class="field-value">${c.proposito_viaje || '-'}</div></div>
+        <div class="field"><div class="field-label">Fecha Viaje</div><div class="field-value">${c.fecha_viaje || '-'}</div></div>
+        <div class="field"><div class="field-label">Duración</div><div class="field-value">${c.duracion ? c.duracion + ' días' : '-'}</div></div>
+        <div class="field"><div class="field-label">Gastos Pagados Por</div><div class="field-value">${c.gastos_pagados_por || '-'}</div></div>
+        <div class="field"><div class="field-label">Viaje Previo USA</div><div class="field-value">${c.viaje_previo || '-'}</div></div>
+        <div class="field"><div class="field-label">Visa Previa</div><div class="field-value">${c.visa_previa || '-'}</div></div>
+        <div class="field"><div class="field-label">Negación Visa</div><div class="field-value">${c.negacion || '-'}</div></div>
+        <div class="field"><div class="field-label">Familiares en USA</div><div class="field-value">${c.familiares_usa || '-'}</div></div>
+      </div>
+      ${c.notas ? `<div style="margin-top:12px"><div class="field-label">Notas</div><div class="field-value">${c.notas}</div></div>` : ''}
+      <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+        <h4 style="margin-bottom:8px;font-size:14px"><i class="fas fa-file-upload"></i> Documentos</h4>
+        <div id="docsList_${c.id}">${renderDocs(c)}</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="file" id="docFile_${c.id}" style="flex:1;font-size:13px">
+          <select id="docType_${c.id}" style="font-size:13px">
+            <option value="documento">Documento</option>
+            <option value="foto">Foto</option>
+            <option value="pasaporte">Pasaporte</option>
+            <option value="ds160">DS-160</option>
+            <option value="cita">Cita</option>
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="subirDocumento(${c.id})"><i class="fas fa-upload"></i></button>
+        </div>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+        <h4 style="margin-bottom:8px;font-size:14px"><i class="fab fa-whatsapp" style="color:#25D366"></i> Historial WhatsApp</h4>
+        <div id="waLog_${c.id}"><span style="font-size:12px;color:var(--gray-400)">Cargando...</span></div>
+      </div>
+    `;
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('clientModal').classList.add('open');
+    cargarWALog(${c.id});
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('clientModal').classList.add('open');
+  }
+
+  function closeModal() { document.getElementById('clientModal').classList.remove('open'); }
+  document.getElementById('clientModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+  async function cambiarEstado(id, estado) {
+    await api(`/api/admin/clientes/${id}/estado`, { method: 'PUT', body: JSON.stringify({ estado }) });
+    closeModal();
+    if (currentPage === 'clientes') renderClientes();
+    if (currentPage === 'dashboard') renderDashboard();
+    toast(`Cliente ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}`);
+  }
+
+  async function eliminarCliente(id) {
+    if (!confirm('¿Eliminar este cliente?')) return;
+    await api(`/api/admin/clientes/${id}`, { method: 'DELETE' });
+    closeModal();
+    if (currentPage === 'clientes') renderClientes();
+    if (currentPage === 'dashboard') renderDashboard();
+    toast('Cliente eliminado');
+  }
+
+  async function resetPassword(id) {
+    const result = await api(`/api/admin/clientes/${id}/reset-password`, { method: 'POST' });
+    if (result) toast(`Nueva contraseña: ${result.temp_password}`);
+  }
+
+  function renderDocs(c) {
+    const docs = c.documentos || [];
+    if (!docs.length) return '<span style="font-size:12px;color:var(--gray-400)">Sin documentos</span>';
+    return docs.map(d => `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span><i class="fas fa-file"></i> ${d.nombre} <span style="color:var(--gray-400);font-size:11px">(${d.tipo})</span></span>
+      <span style="display:flex;gap:4px">
+        <a href="/uploads/${d.archivo}" target="_blank" class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:11px"><i class="fas fa-eye"></i></a>
+        <button class="btn btn-sm btn-danger" style="padding:2px 8px;font-size:11px" onclick="eliminarDocumento(${c.id},${d.id})"><i class="fas fa-trash"></i></button>
+      </span>
+    </div>`).join('');
+  }
+
+  async function subirDocumento(id) {
+    const file = document.getElementById('docFile_' + id).files[0];
+    if (!file) { toast('Selecciona un archivo'); return; }
+    const tipo = document.getElementById('docType_' + id).value;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('tipo', tipo);
+    const res = await fetch('/api/admin/clientes/' + id + '/documentos', { method: 'POST', body: form });
+    if (!res.ok) { toast('Error al subir'); return; }
+    document.getElementById('docFile_' + id).value = '';
+    toast('Documento subido');
+    verCliente(id);
+  }
+
+  async function eliminarDocumento(clientId, docId) {
+    if (!confirm('¿Eliminar este documento?')) return;
+    await fetch('/api/admin/clientes/' + clientId + '/documentos/' + docId, { method: 'DELETE' });
+    toast('Documento eliminado');
+    verCliente(clientId);
+  }
+
+  async function cargarWALog(id) {
+    const logs = await api('/api/admin/whatsapp/logs/' + id) || [];
+    const container = document.getElementById('waLog_' + id);
+    if (!logs.length) { container.innerHTML = '<span style="font-size:12px;color:var(--gray-400)">Sin mensajes enviados</span>'; return; }
+    container.innerHTML = logs.map(l => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <i class="fab fa-whatsapp" style="color:#25D366;font-size:14px"></i>
+      <div style="flex:1"><div style="color:var(--gray-600)">${l.message || '(sin texto)'}</div><div style="color:var(--gray-400);font-size:11px">${new Date(l.fecha).toLocaleString('es-MX')}</div></div>
+    </div>`).join('');
+  }
+
+  // ---- WHATSAPP INTEGRATION ----
+  let waClientId = null;
+
+  async function abrirWhatsApp(id) {
+    waClientId = id;
+    const c = await api(`/api/admin/clientes/${id}`);
+    if (!c) return;
+    const templates = await api('/api/admin/templates') || [];
+    const tel = c.telefono?.replace(/[^0-9]/g, '');
+    let html = `
+      <p style="font-size:14px;color:var(--gray-600);margin-bottom:16px">
+        Enviando a <strong>${c.nombre} ${c.apellido}</strong>
+        ${tel ? `(${c.telefono})` : '<span style="color:var(--danger)">Sin teléfono registrado</span>'}
+      </p>
+      <div style="margin-bottom:12px">
+        <label>O escribe tu mensaje personalizado:</label>
+        <textarea id="waCustomMsg" rows="4" placeholder="Escribe tu mensaje aquí..." oninput="checkWACustom()"></textarea>
+      </div>
+      <div style="margin-bottom:12px">
+        <label>O elige una plantilla:</label>
+        <div class="whatsapp-selector" id="waTemplates">
+          ${templates.map(t => `
+            <div class="whatsapp-option" onclick="selectWATemplate(${t.id}, this)">
+              <strong>${t.title}</strong>
+              <div style="font-size:11px;color:var(--gray-400);margin-top:2px">${t.text.substring(0, 60)}...</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline w-full" onclick="closeWAModal()">Cancelar</button>
+        <button class="btn btn-whatsapp w-full" id="waSendBtn" onclick="enviarWhatsApp()" ${!tel ? 'disabled' : ''}>
+          <i class="fab fa-whatsapp"></i> Abrir WhatsApp
+        </button>
+      </div>
+    `;
+    document.getElementById('whatsappModalBody').innerHTML = html;
+    document.getElementById('whatsappModal').classList.add('open');
+  }
+
+  let waSelectedTemplate = null;
+
+  function selectWATemplate(id, el) {
+    waSelectedTemplate = id;
+    document.querySelectorAll('.whatsapp-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('waCustomMsg').value = '';
+  }
+
+  function checkWACustom() {
+    if (document.getElementById('waCustomMsg').value.trim()) {
+      waSelectedTemplate = null;
+      document.querySelectorAll('.whatsapp-option').forEach(o => o.classList.remove('selected'));
+    }
+  }
+
+  async function enviarWhatsApp() {
+    const c = await api(`/api/admin/clientes/${waClientId}`);
+    if (!c) return;
+    const tel = c.telefono?.replace(/[^0-9]/g, '');
+    if (!tel) { toast('El cliente no tiene teléfono'); return; }
+
+    let msg = document.getElementById('waCustomMsg').value.trim();
+    if (!msg && waSelectedTemplate) {
+      const templates = await api('/api/admin/templates') || [];
+      const t = templates.find(x => x.id == waSelectedTemplate);
+      if (t) msg = t.text;
+    }
+    if (!msg) { toast('Escribe un mensaje o selecciona una plantilla'); return; }
+
+    msg = msg.replace(/\{\{nombre\}\}/g, `${c.nombre} ${c.apellido}`);
+    await api('/api/admin/whatsapp/log', { method: 'POST', body: JSON.stringify({ client_id: waClientId, template_id: waSelectedTemplate, message: msg }) });
+    const url = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+    closeWAModal();
+  }
+
+  function closeWAModal() { document.getElementById('whatsappModal').classList.remove('open'); }
+  document.getElementById('whatsappModal').addEventListener('click', function(e) { if (e.target === this) closeWAModal(); });
+
+  // ---- CHECKLIST ----
+  let checklistState = {};
+  async function renderChecklist() {
+    const list = await api('/api/admin/checklist') || [];
+    checklistState = {};
+    list.forEach(item => { checklistState[item.seccion_id] = item.completado; });
+    const container = document.getElementById('checklistItems');
+    let done = 0;
+    let html = '';
+    SECTIONES_DS160.forEach(s => {
+      const checked = checklistState[s.id] || false;
+      if (checked) done++;
+      html += `<div class="checklist-item ${checked ? 'done' : ''}" onclick="toggleChecklist(${s.id})">
+        <div class="cl-text"><div class="cl-title">Sección ${s.id}: ${s.title}</div><div class="cl-desc">${s.desc}</div></div>
+        <i class="fas fa-${checked ? 'check-circle' : 'circle'}" style="color:${checked ? 'var(--success)' : 'var(--gray-300)'};font-size:18px;margin-top:2px"></i>
+      </div>`;
+    });
+    container.innerHTML = html;
+    const pct = Math.round((done / SECTIONES_DS160.length) * 100);
+    document.getElementById('checklistPercent').textContent = pct + '%';
+    document.getElementById('checklistProgress').style.width = pct + '%';
+  }
+  async function toggleChecklist(id) {
+    checklistState[id] = !checklistState[id];
+    const list = Object.entries(checklistState).map(([seccion_id, completado]) => ({ seccion_id: parseInt(seccion_id), completado }));
+    await api('/api/admin/checklist', { method: 'POST', body: JSON.stringify({ checklist: list }) });
+    renderChecklist();
+  }
+
+  // ---- TEMPLATES (EDITABLES) ----
+  async function renderTemplates() {
+    const templates = await api('/api/admin/templates') || [];
+    const container = document.getElementById('templatesContainer');
+    if (!templates.length) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-comment-dots"></i><p>No hay plantillas. Crea una nueva.</p></div>';
+      return;
+    }
+    let html = '';
+    templates.forEach(t => {
+      html += `<div class="template-card" id="tmpl-${t.id}">
+        <div class="temp-title">
+          <i class="fas ${t.icon || 'fa-comment'}" style="color:var(--primary)"></i>
+          <span class="tmpl-title">${t.title}</span>
+          <div class="temp-actions">
+            <button class="btn btn-sm btn-outline" onclick="editarPlantilla(${t.id})"><i class="fas fa-pen"></i></button>
+            <button class="btn btn-sm btn-outline" onclick="copiarPlantillaTexto(${t.id})"><i class="fas fa-copy"></i></button>
+            <button class="btn btn-sm btn-danger" onclick="eliminarPlantilla(${t.id})"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        <div class="temp-text tmpl-text">${t.text.replace(/\n/g, '<br>')}</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:6px">Variables: {{nombre}}, {{fecha}}, {{lugar}}</div>
+      </div>`;
+    });
+    container.innerHTML = html;
+  }
+
+  function copiarPlantillaTexto(id) {
+    const text = document.querySelector(`#tmpl-${id} .tmpl-text`).textContent;
+    navigator.clipboard.writeText(text).then(() => toast('Texto copiado'));
+  }
+
+  function editarPlantilla(id) {
+    const card = document.getElementById(`tmpl-${id}`);
+    const title = card.querySelector('.tmpl-title').textContent;
+    const text = card.querySelector('.tmpl-text').textContent;
+    document.getElementById('templateModalTitle').textContent = 'Editar Plantilla';
+    document.getElementById('templateModalBody').innerHTML = `
+      <input type="hidden" id="editTmplId" value="${id}">
+      <div class="form-group"><label>Título</label><input type="text" id="editTmplTitle" value="${title.replace(/"/g, '&quot;')}"></div>
+      <div class="form-group"><label>Icono (clase FontAwesome)</label><input type="text" id="editTmplIcon" value="fa-comment" placeholder="fa-hand-wave, fa-bell, etc."></div>
+      <div class="form-group"><label>Mensaje</label>
+        <textarea id="editTmplText" rows="10" style="font-family:monospace;font-size:13px">${text}</textarea>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px">Usa {{nombre}}, {{fecha}}, {{lugar}} como variables</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-outline" onclick="closeTemplateModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarPlantilla()"><i class="fas fa-save"></i> Guardar</button>
+      </div>
+    `;
+    document.getElementById('templateModal').classList.add('open');
+  }
+
+  function nuevaPlantilla() {
+    document.getElementById('templateModalTitle').textContent = 'Nueva Plantilla';
+    document.getElementById('templateModalBody').innerHTML = `
+      <input type="hidden" id="editTmplId" value="">
+      <div class="form-group"><label>Título</label><input type="text" id="editTmplTitle" placeholder="Ej: Bienvenida"></div>
+      <div class="form-group"><label>Icono</label><input type="text" id="editTmplIcon" value="fa-comment" placeholder="fa-hand-wave, fa-bell, etc."></div>
+      <div class="form-group"><label>Mensaje</label>
+        <textarea id="editTmplText" rows="10" style="font-family:monospace;font-size:13px" placeholder="Escribe tu plantilla aquí..."></textarea>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px">Usa {{nombre}}, {{fecha}}, {{lugar}} como variables</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-outline" onclick="closeTemplateModal()">Cancelar</button>
+        <button class="btn btn-success" onclick="guardarPlantilla()"><i class="fas fa-save"></i> Crear Plantilla</button>
+      </div>
+    `;
+    document.getElementById('templateModal').classList.add('open');
+  }
+
+  async function guardarPlantilla() {
+    const id = document.getElementById('editTmplId').value;
+    const title = document.getElementById('editTmplTitle').value.trim();
+    const icon = document.getElementById('editTmplIcon').value.trim() || 'fa-comment';
+    const text = document.getElementById('editTmplText').value.trim();
+    if (!title || !text) { toast('Completa título y mensaje'); return; }
+    if (id) {
+      await api(`/api/admin/templates/${id}`, { method: 'PUT', body: JSON.stringify({ title, icon, text }) });
+      toast('Plantilla actualizada');
+    } else {
+      await api('/api/admin/templates', { method: 'POST', body: JSON.stringify({ title, icon, text }) });
+      toast('Plantilla creada');
+    }
+    closeTemplateModal();
+    renderTemplates();
+  }
+
+  async function eliminarPlantilla(id) {
+    if (!confirm('¿Eliminar esta plantilla?')) return;
+    await api(`/api/admin/templates/${id}`, { method: 'DELETE' });
+    renderTemplates();
+    toast('Plantilla eliminada');
+  }
+
+  function closeTemplateModal() { document.getElementById('templateModal').classList.remove('open'); }
+  document.getElementById('templateModal').addEventListener('click', function(e) { if (e.target === this) closeTemplateModal(); });
+
+  // ---- EXPORTAR ----
+  async function renderExport() {
+    const clients = await api('/api/admin/clientes') || [];
+    document.getElementById('exportCount').textContent = clients.length;
+    const container = document.getElementById('exportPreview');
+    if (!clients.length) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-table"></i><p>No hay datos para exportar</p></div>';
+      return;
+    }
+    const campos = ['nombre','apellido','email','telefono','pasaporte','fecha_nacimiento','nacionalidad','genero','estado_civil','ocupacion','pais_emision','fecha_vencimiento','proposito_viaje','fecha_viaje','duracion','estado','fecha_registro'];
+    const labels = ['Nombre','Apellido','Email','Teléfono','Pasaporte','Fecha Nac.','Nacionalidad','Género','Estado Civil','Ocupación','País Emisión','Venc. Pasaporte','Propósito Viaje','Fecha Viaje','Duración','Estado','Registro'];
+    let html = '<table><thead><tr>' + labels.map(l => `<th>${l}</th>`).join('') + '</tr></thead><tbody>';
+    clients.slice(0,5).forEach(c => {
+      html += '<tr>' + campos.map(campo => `<td>${c[campo] || '-'}</td>`).join('') + '</tr>';
+    });
+    if (clients.length > 5) {
+      html += `<tr><td colspan="${campos.length}" style="text-align:center;color:var(--gray-400);font-style:italic">... y ${clients.length - 5} clientes más</td></tr>`;
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  function exportarExcel() { window.location.href = '/api/admin/exportar/excel'; }
+  function exportarCSV() { window.location.href = '/api/admin/exportar/csv'; }
+
+  // ---- INIT ----
+  renderDashboard();
+</script>
+</body>
+</html>

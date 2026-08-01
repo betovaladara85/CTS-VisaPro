@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTS - Iniciar Sesión</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #FAF8F5; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .login-card {
+      background: #FFFFFF; border-radius: 6px; padding: 48px 40px 36px;
+      width: 100%; max-width: 400px;
+      box-shadow: 0 8px 24px rgba(44,24,16,0.06);
+      border: 1px solid #E8E0D8;
+      position: relative;
+    }
+    .login-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: #C4A265; border-radius: 6px 6px 0 0;
+    }
+    .login-brand { text-align: center; margin-bottom: 36px; }
+    .login-brand .brand-logo {
+      width: 56px; height: 56px; margin: 0 auto 16px;
+      background: #2C1810; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700;
+      color: #C4A265; letter-spacing: 1px;
+    }
+    .login-brand h1 {
+      font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600;
+      color: #2C1810; letter-spacing: 0.5px;
+    }
+    .login-brand .diamond {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      margin: 12px 0 8px; color: #C4A265; font-size: 8px;
+    }
+    .login-brand .diamond::before, .login-brand .diamond::after {
+      content: ''; width: 40px; height: 1px; background: #E8E0D8;
+    }
+    .login-brand p {
+      font-size: 11px; color: #9A8B7E; letter-spacing: 2px; text-transform: uppercase;
+    }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 10px; font-weight: 600; color: #6B5B4F; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.8px; }
+    input {
+      width: 100%; padding: 10px 14px; border: 1px solid #E8E0D8;
+      border-radius: 4px; font-size: 14px; transition: all 0.2s;
+      font-family: inherit; color: #2C1810; background: #FAF8F5;
+    }
+    input:focus { outline: none; border-color: #C4A265; background: white; box-shadow: 0 0 0 2px rgba(196,162,101,0.12); }
+    .btn {
+      width: 100%; padding: 11px; border: none; border-radius: 4px;
+      font-size: 13px; font-weight: 600; cursor: pointer; letter-spacing: 0.5px;
+      background: #2C1810; color: #C4A265; transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn:hover { background: #3D2A1E; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .error {
+      background: #FDEEE8; color: #8B2500; padding: 10px 14px;
+      border-radius: 4px; font-size: 13px; margin-bottom: 16px;
+      display: none; border: 1px solid #F5D5C8;
+    }
+    .error.show { display: block; }
+    .footer {
+      text-align: center; margin-top: 28px; padding-top: 20px;
+      border-top: 1px solid #E8E0D8;
+      font-size: 9px; color: #9A8B7E; letter-spacing: 2px; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-logo">CTS</div>
+      <h1>Certified Translation & Service</h1>
+      <div class="diamond"><span>&#9670;</span></div>
+      <p>English-Spanish</p>
+    </div>
+    <div class="error show" id="errorMsg"><%= error || '' %></div>
+    <div class="error" id="jsError"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="tu@email.com" required autofocus>
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn" id="loginBtn">Iniciar Sesión</button>
+    </form>
+    <div class="footer">Certified Translations &middot; Visa Services &middot; Immigration Assistance</div>
+  </div>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('jsError');
+      btn.disabled = true; btn.textContent = 'Entrando...';
+      err.classList.remove('show');
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          err.textContent = data.error || 'Error al iniciar sesión';
+          err.classList.add('show');
+          btn.disabled = false; btn.textContent = 'Iniciar Sesión';
+          return;
+        }
+        window.location.href = data.role === 'admin' ? '/admin' : '/cliente';
+      } catch(e) {
+        err.textContent = 'Error de conexión';
+        err.classList.add('show');
+        btn.disabled = false; btn.textContent = 'Iniciar Sesión';
+      }
+    });
+  </script>
+</body>
+</html>

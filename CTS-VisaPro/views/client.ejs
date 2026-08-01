@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Caso - CTS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+    :root {
+      --cts-dark: #2C1810; --cts-dark-light: #3D2A1E;
+      --cts-gold: #C4A265; --cts-cream: #FAF8F5;
+      --cts-beige: #F5F0EB; --cts-beige-dark: #E8E0D8;
+      --cts-text: #2C1810; --cts-text-mid: #6B5B4F; --cts-text-light: #9A8B7E;
+      --cts-success: #2D7D46; --cts-success-light: #E8F5ED;
+      --cts-warning: #8B7D3C; --cts-warning-light: #F5F0E0;
+      --cts-danger: #8B2500; --cts-danger-light: #FDEEE8;
+      --radius: 6px; --shadow: 0 1px 3px rgba(44,24,16,0.04);
+      --shadow-lg: 0 4px 12px rgba(44,24,16,0.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--cts-cream); color: var(--cts-text); min-height: 100vh;
+    }
+    h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 600; }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: var(--cts-dark); padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: var(--cts-gold); z-index: 1;
+    }
+    .topbar { position: relative; }
+    .topbar-brand {
+      font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 600;
+      color: var(--cts-gold); display: flex; align-items: center; gap: 10px;
+    }
+    .topbar-brand .brand-icon {
+      width: 30px; height: 30px; background: var(--cts-gold); border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif; font-size: 11px; font-weight: 700;
+      color: var(--cts-dark); letter-spacing: 0.5px;
+    }
+    .topbar-user { font-size: 13px; color: rgba(255,255,255,0.5); display: flex; align-items: center; gap: 12px; }
+    .topbar-user a { color: rgba(255,255,255,0.4); text-decoration: none; font-size: 12px; }
+    .topbar-user a:hover { color: var(--cts-gold); }
+
+    /* ── Container ── */
+    .container { max-width: 800px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 1; }
+
+    /* ── Hero ── */
+    .hero {
+      background: var(--cts-dark); border-radius: var(--radius); padding: 32px;
+      color: white; margin-bottom: 24px; position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: 'CTS'; position: absolute; top: -10px; right: 10px;
+      font-family: 'Playfair Display', serif; font-size: 100px; font-weight: 700;
+      opacity: 0.04; color: var(--cts-gold); letter-spacing: 5px;
+    }
+    .hero h1 { font-size: 24px; font-weight: 600; color: var(--cts-gold); }
+    .hero p { font-size: 14px; opacity: 0.6; margin-top: 4px; }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px;
+      border-radius: 3px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .status-proceso { background: var(--cts-warning-light); color: var(--cts-warning); }
+    .status-aprobado { background: var(--cts-success-light); color: var(--cts-success); }
+    .status-rechazado { background: var(--cts-danger-light); color: var(--cts-danger); }
+
+    /* ── Cards ── */
+    .card {
+      background: white; border-radius: var(--radius); box-shadow: var(--shadow);
+      border: 1px solid var(--cts-beige-dark); margin-bottom: 16px; overflow: hidden;
+    }
+    .card-header {
+      padding: 12px 20px; border-bottom: 1px solid var(--cts-beige);
+      font-weight: 600; font-size: 13px; color: var(--cts-text-mid); background: var(--cts-beige);
+    }
+    .card-body { padding: 20px; }
+
+    /* ── Fields ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field-label { font-size: 10px; color: var(--cts-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field-value { font-size: 14px; color: var(--cts-text); margin-top: 2px; }
+
+    /* ── Progress ── */
+    .progress-bar { height: 5px; background: var(--cts-beige-dark); border-radius: 2px; overflow: hidden; margin: 12px 0; }
+    .progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+    .progress-fill.proceso { background: var(--cts-warning); }
+    .progress-fill.aprobado { background: var(--cts-success); }
+    .progress-fill.rechazado { background: var(--cts-danger); }
+
+    /* ── Steps ── */
+    .step-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--cts-beige); }
+    .step-item:last-child { border-bottom: none; }
+    .step-icon {
+      width: 26px; height: 26px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+    .step-done { background: var(--cts-success); color: white; }
+    .step-pending { background: var(--cts-beige-dark); color: var(--cts-text-light); }
+    .step-text { font-size: 14px; }
+    .step-text small { font-size: 12px; color: var(--cts-text-light); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px;
+      border-radius: var(--radius); border: none; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; text-decoration: none; letter-spacing: 0.3px;
+    }
+    .btn-primary { background: var(--cts-dark); color: var(--cts-gold); }
+    .btn-primary:hover { background: var(--cts-dark-light); }
+    .btn-whatsapp { background: #25D366; color: white; }
+    .btn-whatsapp:hover { background: #1da851; }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--cts-text-light); }
+    .empty-state i { font-size: 40px; margin-bottom: 8px; opacity: 0.4; }
+    @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">CTS</div>
+      <span>CTS</span>
+    </div>
+    <div class="topbar-user">
+      <span><%= user.nombre %></span>
+      <a href="/logout"><i class="fas fa-sign-out-alt"></i> Salir</a>
+    </div>
+  </div>
+
+  <div class="container" id="app">
+    <div class="empty-state" id="loading">
+      <i class="fas fa-spinner fa-spin"></i>
+      <p>Cargando tu información...</p>
+    </div>
+  </div>
+
+  <script>
+    const SECTIONS = [
+      { id: 1, title: 'Datos Personales' },
+      { id: 2, title: 'Información del Pasaporte' },
+      { id: 3, title: 'Información de Contacto' },
+      { id: 4, title: 'Información del Viaje' },
+      { id: 5, title: 'Información de Acompañantes' },
+      { id: 6, title: 'Historial de Viajes Previos' },
+      { id: 7, title: 'Historial de Visas' },
+      { id: 8, title: 'Información de Familiares' },
+      { id: 9, title: 'Información Laboral' },
+      { id: 10, title: 'Información Educativa' },
+      { id: 11, title: 'Antecedentes de Seguridad' },
+      { id: 12, title: 'Carga de Documentos' }
+    ];
+
+    function statusLabel(s) {
+      if (s === 'aprobado') return 'Aprobado';
+      if (s === 'rechazado') return 'Rechazado';
+      return 'En Proceso';
+    }
+
+    function statusClass(s) {
+      if (s === 'aprobado') return 'aprobado';
+      if (s === 'rechazado') return 'rechazado';
+      return 'proceso';
+    }
+
+    function statusBadgeClass(s) {
+      if (s === 'aprobado') return 'status-aprobado';
+      if (s === 'rechazado') return 'status-rechazado';
+      return 'status-proceso';
+    }
+
+    async function loadCase() {
+      try {
+        const res = await fetch('/api/client/mi-caso');
+        if (!res.ok) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        render(data);
+        fetch('/api/client/mi-caso/visto', { method: 'POST' }).catch(() => {});
+      } catch {
+        document.getElementById('app').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error al cargar tu información</p></div>';
+      }
+    }
+
+    function render(data) {
+      const c = data.client;
+      const checklist = data.checklist || [];
+      const doneCount = checklist.filter(x => x.completado).length;
+      const total = SECTIONS.length;
+      const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+      document.getElementById('app').innerHTML = `
+        <div class="hero">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <h1>${c.nombre} ${c.apellido}</h1>
+              <p>Expediente de visa americana</p>
+            </div>
+            <span class="status-badge ${statusBadgeClass(c.estado)}">
+              <i class="fas fa-${c.estado === 'aprobado' ? 'check-circle' : c.estado === 'rechazado' ? 'times-circle' : 'clock'}"></i>
+              ${statusLabel(c.estado)}
+            </span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">Progreso del Trámite</div>
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600">
+              <span>Completado</span>
+              <span>${pct}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill ${statusClass(c.estado)}" style="width:${pct}%"></div>
+            </div>
+            <p style="font-size:13px;color:var(--cts-text-light)">${doneCount} de ${total} secciones completadas</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">Secciones del DS-160</div>
+          <div class="card-body">
+            ${SECTIONS.map(s => {
+              const done = checklist.find(x => x.seccion_id === s.id && x.completado);
+              return `<div class="step-item">
+                <div class="step-icon ${done ? 'step-done' : 'step-pending'}">${done ? '<i class="fas fa-check"></i>' : s.id}</div>
+                <div class="step-text">Sección ${s.id}: ${s.title} ${done ? '<small>Completado</small>' : '<small style="color:var(--cts-text-light)">Pendiente</small>'}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">Mis Datos</div>
+          <div class="card-body">
+            <div class="grid-2">
+              <div><div class="field-label">Fecha de Nacimiento</div><div class="field-value">${c.fecha_nacimiento || '-'}</div></div>
+              <div><div class="field-label">Nacionalidad</div><div class="field-value">${c.nacionalidad || '-'}</div></div>
+              <div><div class="field-label">Pasaporte</div><div class="field-value">${c.pasaporte || '-'}</div></div>
+              <div><div class="field-label">Vencimiento Pasaporte</div><div class="field-value">${c.fecha_vencimiento || '-'}</div></div>
+              <div><div class="field-label">Email</div><div class="field-value">${c.email || '-'}</div></div>
+              <div><div class="field-label">Teléfono</div><div class="field-value">${c.telefono || '-'}</div></div>
+              <div><div class="field-label">Propósito del Viaje</div><div class="field-value">${c.proposito_viaje || '-'}</div></div>
+              <div><div class="field-label">Fecha Estimada de Viaje</div><div class="field-value">${c.fecha_viaje || '-'}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:center;margin:24px 0">
+          <p style="font-size:13px;color:var(--cts-text-light);margin-bottom:12px">¿Tienes dudas? Contáctanos por WhatsApp</p>
+          <a class="btn btn-whatsapp" href="https://wa.me/" target="_blank"><i class="fab fa-whatsapp"></i> Contactar por WhatsApp</a>
+        </div>
+      `;
+    }
+
+    loadCase();
+  </script>
+</body>
+</html>
