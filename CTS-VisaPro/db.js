@@ -72,7 +72,7 @@ async function migratePostgres() {
       negacion TEXT DEFAULT '',
       familiares_usa TEXT DEFAULT '',
       notas TEXT DEFAULT '',
-			estado TEXT DEFAULT 'proceso',
+	  estado TEXT DEFAULT 'proceso',
       fecha_registro TEXT DEFAULT '',
       ultima_vista TIMESTAMP DEFAULT NULL,
       documentos JSONB DEFAULT '[]',
