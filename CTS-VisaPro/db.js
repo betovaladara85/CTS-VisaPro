@@ -61,7 +61,6 @@ async function migratePostgres() {
       telefono TEXT DEFAULT '',
       direccion TEXT DEFAULT '',
       ciudad TEXT DEFAULT '',
-      
       codigo_postal TEXT DEFAULT '',
       proposito_viaje TEXT DEFAULT '',
       fecha_viaje TEXT DEFAULT '',
@@ -72,8 +71,8 @@ async function migratePostgres() {
       visa_previa TEXT DEFAULT '',
       negacion TEXT DEFAULT '',
       familiares_usa TEXT DEFAULT '',
-      notas TEXT DEFAULT '',,
-      
+      notas TEXT DEFAULT '',
+			estado TEXT DEFAULT 'proceso',
       fecha_registro TEXT DEFAULT '',
       ultima_vista TIMESTAMP DEFAULT NULL,
       documentos JSONB DEFAULT '[]',
