@@ -220,12 +220,15 @@ async function createClient(data) {
     const client = rows[0];
 
     if (data.email) {
-      const tempPass = Math.random().toString(36).slice(2, 8);
-      const hashed = bcrypt.hashSync(tempPass, 10);
-      const user = await createUser(data.email, hashed, data.nombre, data.apellido, 'client');
+      let user = await findUserByEmail(data.email);
+      if (!user) {
+        const tempPass = Math.random().toString(36).slice(2, 8);
+        const hashed = bcrypt.hashSync(tempPass, 10);
+        user = await createUser(data.email, hashed, data.nombre, data.apellido, 'client');
+        client.temp_password = tempPass;
+      }
       await pool.query('UPDATE clients SET user_id = $1 WHERE id = $2', [user.id, client.id]);
       client.user_id = user.id;
-      client.temp_password = tempPass;
     }
     return client;
   }
@@ -234,12 +237,16 @@ async function createClient(data) {
   const client = { id: newId, user_id: null, ...data, estado: 'proceso', fecha_registro: new Date().toLocaleDateString('es-MX'), created_at: new Date().toISOString() };
   db.clients.push(client);
   if (data.email) {
-    const tempPass = Math.random().toString(36).slice(2, 8);
-    const hashed = bcrypt.hashSync(tempPass, 10);
-    const userId = db.users.length > 0 ? Math.max(...db.users.map(u => u.id)) + 1 : 1;
-    db.users.push({ id: userId, email: data.email, password: hashed, nombre: data.nombre, apellido: data.apellido, role: 'client', created_at: new Date().toISOString() });
-    client.user_id = userId;
-    client.temp_password = tempPass;
+    let user = loadJSON().users.find(u => u.email === data.email);
+    if (!user) {
+      const tempPass = Math.random().toString(36).slice(2, 8);
+      const hashed = bcrypt.hashSync(tempPass, 10);
+      const userId = db.users.length > 0 ? Math.max(...db.users.map(u => u.id)) + 1 : 1;
+      user = { id: userId, email: data.email, password: hashed, nombre: data.nombre, apellido: data.apellido, role: 'client', created_at: new Date().toISOString() };
+      db.users.push(user);
+      client.temp_password = tempPass;
+    }
+    client.user_id = user.id;
   }
   saveJSON(db);
   return client;
