@@ -42,9 +42,6 @@ async function migratePostgres() {
     )
   `);
   await pool.query(`
-      DROP TABLE IF EXISTS clients CASCADE;
-  `);
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS clients (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -75,7 +72,7 @@ async function migratePostgres() {
       negacion TEXT DEFAULT '',
       familiares_usa TEXT DEFAULT '',
       notas TEXT DEFAULT '',
-	  estado TEXT DEFAULT 'proceso',
+      estado TEXT DEFAULT 'proceso',
       fecha_registro TEXT DEFAULT '',
       ultima_vista TIMESTAMP DEFAULT NULL,
       documentos JSONB DEFAULT '[]',
@@ -214,6 +211,7 @@ async function getClient(id) {
 
 async function createClient(data) {
   if (usePostgres) {
+    data.estado = 'proceso';
     const fields = ['nombre','apellido','fecha_nacimiento','lugar_nacimiento','nacionalidad','genero','estado_civil','ocupacion','pasaporte','pais_emision','fecha_expedicion','fecha_vencimiento','email','telefono','direccion','ciudad','estado','codigo_postal','proposito_viaje','fecha_viaje','duracion','alojamiento','gastos_pagados_por','viaje_previo','visa_previa','negacion','familiares_usa','notas','fecha_registro'];
     const vals = fields.map(f => data[f] || '');
     vals[vals.length - 1] = new Date().toLocaleDateString('es-MX');

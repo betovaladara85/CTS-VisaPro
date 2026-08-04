@@ -332,9 +332,9 @@
     </div>
     <div class="stats-grid" id="statsGrid">
       <div class="stat-card"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-label">Total Clientes</div><div class="stat-value" id="statTotal">-</div></div>
-      <div class="stat-card"><div class="stat-icon"><i class="fas fa-spinner"></i></div><div class="stat-label">En Proceso</div><div class="stat-value" style="color:var(--warning)" id="statProceso">-</div></div>
-      <div class="stat-card"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-label">Aprobados</div><div class="stat-value" style="color:var(--success)" id="statAprobado">-</div></div>
-      <div class="stat-card"><div class="stat-icon"><i class="fas fa-times-circle"></i></div><div class="stat-label">Rechazados</div><div class="stat-value" style="color:var(--danger)" id="statRechazado">-</div></div>
+      <div class="stat-card"><div class="stat-icon"><i class="fas fa-spinner"></i></div><div class="stat-label">En Proceso</div><div class="stat-value" style="color:var(--cts-warning)" id="statProceso">-</div></div>
+      <div class="stat-card"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-label">Aprobados</div><div class="stat-value" style="color:var(--cts-success)" id="statAprobado">-</div></div>
+      <div class="stat-card"><div class="stat-icon"><i class="fas fa-times-circle"></i></div><div class="stat-label">Rechazados</div><div class="stat-value" style="color:var(--cts-danger)" id="statRechazado">-</div></div>
     </div>
     <div class="card">
       <div class="card-header">Clientes por Mes</div>
@@ -363,7 +363,7 @@
         <div class="search-bar">
           <input type="text" id="searchInput" placeholder="Buscar por nombre, pasaporte o email..." oninput="renderClientes()">
           <button class="btn btn-outline btn-sm" onclick="document.getElementById('searchInput').value='';renderClientes()"><i class="fas fa-times"></i></button>
-          <span style="font-size:12px;color:var(--gray-400);align-self:center" id="clientCount"></span>
+          <span style="font-size:12px;color:var(--cts-text-light);align-self:center" id="clientCount"></span>
         </div>
         <div class="table-wrap" id="clientesTableWrap"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Cargando...</p></div></div>
       </div>
@@ -407,7 +407,7 @@
             <button type="button" class="btn btn-primary" onclick="nextStep()">Siguiente <i class="fas fa-arrow-right"></i></button>
           </div>
           <div class="form-step hidden fade-in" data-step="2">
-            <h3 style="font-size:15px;margin-bottom:12px;color:var(--gray-600)">Información de Contacto</h3>
+            <h3 style="font-size:15px;margin-bottom:12px;color:var(--cts-text-mid)">Información de Contacto</h3>
             <div class="form-row">
               <div class="form-group"><label>Email *</label><input type="email" id="fEmail" required></div>
               <div class="form-group"><label>Teléfono *</label><input type="tel" id="fTelefono" required></div>
@@ -418,7 +418,7 @@
               <div class="form-group"><label>Estado</label><input type="text" id="fEstado"></div>
               <div class="form-group"><label>Código Postal</label><input type="text" id="fCodigoPostal"></div>
             </div>
-            <h3 style="font-size:15px;margin:16px 0 12px;color:var(--gray-600)">Información del Viaje</h3>
+            <h3 style="font-size:15px;margin:16px 0 12px;color:var(--cts-text-mid)">Información del Viaje</h3>
             <div class="form-row-3">
               <div class="form-group"><label>Propósito del Viaje</label><select id="fProposito"><option value="">Seleccionar...</option><option>Turismo</option><option>Negocios</option><option>Estudios</option><option>Trabajo</option><option>Visita familiar</option><option>Médico</option></select></div>
               <div class="form-group"><label>Fecha Estimada</label><input type="date" id="fFechaViaje"></div>
@@ -434,7 +434,7 @@
             </div>
           </div>
           <div class="form-step hidden fade-in" data-step="3">
-            <h3 style="font-size:15px;margin-bottom:12px;color:var(--gray-600)">Situación Migratoria</h3>
+            <h3 style="font-size:15px;margin-bottom:12px;color:var(--cts-text-mid)">Situación Migratoria</h3>
             <div class="form-group"><label>¿Ha viajado antes a EE.UU.?</label><select id="fViajePrev"><option value="">Seleccionar...</option><option>Si</option><option>No</option></select></div>
             <div class="form-group"><label>¿Ha tenido visa americana anteriormente?</label><select id="fVisaPrevia"><option value="">Seleccionar...</option><option>Si</option><option>No</option></select></div>
             <div class="form-group"><label>¿Le han negado alguna vez una visa?</label><select id="fNegacion"><option value="">Seleccionar...</option><option>Si</option><option>No</option></select></div>
@@ -482,17 +482,17 @@
     <div class="stats-grid" style="grid-template-columns:1fr 1fr">
       <div class="card">
         <div class="card-body text-center" style="padding:40px">
-          <i class="fas fa-file-excel" style="font-size:48px;color:var(--success);margin-bottom:12px"></i>
+          <i class="fas fa-file-excel" style="font-size:48px;color:var(--cts-success);margin-bottom:12px"></i>
           <h3 style="margin-bottom:8px">Exportar a Excel</h3>
-          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Descarga todos los datos en formato .xlsx</p>
+          <p style="font-size:13px;color:var(--cts-text-mid);margin-bottom:16px">Descarga todos los datos en formato .xlsx</p>
           <button class="btn btn-success" onclick="exportarExcel()"><i class="fas fa-download"></i> Descargar Excel</button>
         </div>
       </div>
       <div class="card">
         <div class="card-body text-center" style="padding:40px">
-          <i class="fas fa-file-csv" style="font-size:48px;color:var(--primary);margin-bottom:12px"></i>
+          <i class="fas fa-file-csv" style="font-size:48px;color:var(--cts-dark);margin-bottom:12px"></i>
           <h3 style="margin-bottom:8px">Exportar a CSV</h3>
-          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Descarga todos los datos en formato .csv</p>
+          <p style="font-size:13px;color:var(--cts-text-mid);margin-bottom:16px">Descarga todos los datos en formato .csv</p>
           <button class="btn btn-primary" onclick="exportarCSV()"><i class="fas fa-download"></i> Descargar CSV</button>
         </div>
       </div>
@@ -500,7 +500,7 @@
     <div class="card mt-4">
       <div class="card-header">Vista Previa de Datos a Exportar</div>
       <div class="card-body">
-        <p style="font-size:14px;color:var(--gray-500);margin-bottom:12px"><span id="exportCount">0</span> clientes listos para exportar</p>
+        <p style="font-size:14px;color:var(--cts-text-mid);margin-bottom:12px"><span id="exportCount">0</span> clientes listos para exportar</p>
         <div class="table-wrap" id="exportPreview"><div class="empty-state"><i class="fas fa-table"></i><p>No hay datos</p></div></div>
       </div>
     </div>
@@ -669,7 +669,6 @@
   function setFilter(el) {
     document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
     el.classList.add('active');
-    document.getElementById('statusFilter').value = el.dataset.filter;
     renderClientes();
   }
 
@@ -688,7 +687,7 @@
       const tc = c.estado === 'aprobado' ? 'tag-aprobado' : c.estado === 'rechazado' ? 'tag-rechazado' : 'tag-proceso';
       const tl = c.estado === 'aprobado' ? 'Aprobado' : c.estado === 'rechazado' ? 'Rechazado' : 'En Proceso';
       const ultima = c.ultima_vista ? timeAgo(c.ultima_vista) : '-';
-      html += `<tr onclick="verCliente(${c.id})"><td><strong>${c.nombre} ${c.apellido}</strong></td><td>${c.pasaporte}</td><td>${c.email_cliente || c.email}</td><td>${c.telefono}</td><td>${c.fecha_registro}</td><td style="font-size:12px;color:var(--gray-500)">${ultima}</td><td><span class="tag ${tc}">${tl}</span></td></tr>`;
+      html += `<tr onclick="verCliente(${c.id})"><td><strong>${c.nombre} ${c.apellido}</strong></td><td>${c.pasaporte}</td><td>${c.email_cliente || c.email}</td><td>${c.telefono}</td><td>${c.fecha_registro}</td><td style="font-size:12px;color:var(--cts-text-mid)">${ultima}</td><td><span class="tag ${tc}">${tl}</span></td></tr>`;
     });
     html += '</tbody></table>';
     container.innerHTML = html;
@@ -737,7 +736,7 @@
       telefono: document.getElementById('fTelefono').value.trim(),
       direccion: document.getElementById('fDireccion').value.trim(),
       ciudad: document.getElementById('fCiudad').value.trim(),
-      estado: document.getElementById('fEstado').value.trim(),
+      estado_residencia: document.getElementById('fEstado').value.trim(),
       codigo_postal: document.getElementById('fCodigoPostal').value.trim(),
       proposito_viaje: document.getElementById('fProposito').value,
       fecha_viaje: document.getElementById('fFechaViaje').value,
@@ -781,7 +780,7 @@
           <button class="btn btn-sm btn-danger" onclick="eliminarCliente(${c.id})"><i class="fas fa-trash"></i></button>
         </div>
       </div>
-      ${c.login_creado ? `<div style="margin-bottom:12px;padding:10px 14px;background:var(--primary-light);border-radius:8px;font-size:13px">Cliente con acceso: ${c.email_login} <button class="btn btn-sm btn-outline" onclick="resetPassword(${c.id})" style="float:right">Resetear contraseña</button></div>` : '<div style="margin-bottom:12px;padding:10px 14px;background:var(--warning-light);border-radius:8px;font-size:13px">Este cliente no tiene acceso al sistema.</div>'}
+      ${c.login_creado ? `<div style="margin-bottom:12px;padding:10px 14px;background:var(--cts-beige);border-radius:8px;font-size:13px">Cliente con acceso: ${c.email_login} <button class="btn btn-sm btn-outline" onclick="resetPassword(${c.id})" style="float:right">Resetear contraseña</button></div>` : '<div style="margin-bottom:12px;padding:10px 14px;background:var(--cts-warning-light);border-radius:8px;font-size:13px">Este cliente no tiene acceso al sistema.</div>'}
       <div class="client-detail-grid">
         <div class="field"><div class="field-label">Nombre</div><div class="field-value">${c.nombre} ${c.apellido}</div></div>
         <div class="field"><div class="field-label">Fecha de Nacimiento</div><div class="field-value">${c.fecha_nacimiento || '-'}</div></div>
@@ -807,7 +806,7 @@
         <div class="field"><div class="field-label">Familiares en USA</div><div class="field-value">${c.familiares_usa || '-'}</div></div>
       </div>
       ${c.notas ? `<div style="margin-top:12px"><div class="field-label">Notas</div><div class="field-value">${c.notas}</div></div>` : ''}
-      <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="margin-top:16px;border-top:1px solid var(--cts-beige-dark);padding-top:12px">
         <h4 style="margin-bottom:8px;font-size:14px"><i class="fas fa-file-upload"></i> Documentos</h4>
         <div id="docsList_${c.id}">${renderDocs(c)}</div>
         <div style="display:flex;gap:8px;margin-top:8px">
@@ -822,16 +821,14 @@
           <button class="btn btn-sm btn-primary" onclick="subirDocumento(${c.id})"><i class="fas fa-upload"></i></button>
         </div>
       </div>
-      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="margin-top:12px;border-top:1px solid var(--cts-beige-dark);padding-top:12px">
         <h4 style="margin-bottom:8px;font-size:14px"><i class="fab fa-whatsapp" style="color:#25D366"></i> Historial WhatsApp</h4>
-        <div id="waLog_${c.id}"><span style="font-size:12px;color:var(--gray-400)">Cargando...</span></div>
+        <div id="waLog_${c.id}"><span style="font-size:12px;color:var(--cts-text-light)">Cargando...</span></div>
       </div>
     `;
     document.getElementById('modalBody').innerHTML = html;
     document.getElementById('clientModal').classList.add('open');
-    cargarWALog(${c.id});
-    document.getElementById('modalBody').innerHTML = html;
-    document.getElementById('clientModal').classList.add('open');
+    cargarWALog(c.id);
   }
 
   function closeModal() { document.getElementById('clientModal').classList.remove('open'); }
@@ -861,9 +858,9 @@
 
   function renderDocs(c) {
     const docs = c.documentos || [];
-    if (!docs.length) return '<span style="font-size:12px;color:var(--gray-400)">Sin documentos</span>';
-    return docs.map(d => `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px">
-      <span><i class="fas fa-file"></i> ${d.nombre} <span style="color:var(--gray-400);font-size:11px">(${d.tipo})</span></span>
+    if (!docs.length) return '<span style="font-size:12px;color:var(--cts-text-light)">Sin documentos</span>';
+    return docs.map(d => `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--cts-beige-dark);font-size:13px">
+      <span><i class="fas fa-file"></i> ${d.nombre} <span style="color:var(--cts-text-light);font-size:11px">(${d.tipo})</span></span>
       <span style="display:flex;gap:4px">
         <a href="/uploads/${d.archivo}" target="_blank" class="btn btn-sm btn-outline" style="padding:2px 8px;font-size:11px"><i class="fas fa-eye"></i></a>
         <button class="btn btn-sm btn-danger" style="padding:2px 8px;font-size:11px" onclick="eliminarDocumento(${c.id},${d.id})"><i class="fas fa-trash"></i></button>
@@ -895,10 +892,10 @@
   async function cargarWALog(id) {
     const logs = await api('/api/admin/whatsapp/logs/' + id) || [];
     const container = document.getElementById('waLog_' + id);
-    if (!logs.length) { container.innerHTML = '<span style="font-size:12px;color:var(--gray-400)">Sin mensajes enviados</span>'; return; }
-    container.innerHTML = logs.map(l => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">
+    if (!logs.length) { container.innerHTML = '<span style="font-size:12px;color:var(--cts-text-light)">Sin mensajes enviados</span>'; return; }
+    container.innerHTML = logs.map(l => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--cts-beige-dark);font-size:12px">
       <i class="fab fa-whatsapp" style="color:#25D366;font-size:14px"></i>
-      <div style="flex:1"><div style="color:var(--gray-600)">${l.message || '(sin texto)'}</div><div style="color:var(--gray-400);font-size:11px">${new Date(l.fecha).toLocaleString('es-MX')}</div></div>
+      <div style="flex:1"><div style="color:var(--cts-text-mid)">${l.message || '(sin texto)'}</div><div style="color:var(--cts-text-light);font-size:11px">${new Date(l.fecha).toLocaleString('es-MX')}</div></div>
     </div>`).join('');
   }
 
@@ -912,9 +909,9 @@
     const templates = await api('/api/admin/templates') || [];
     const tel = c.telefono?.replace(/[^0-9]/g, '');
     let html = `
-      <p style="font-size:14px;color:var(--gray-600);margin-bottom:16px">
+      <p style="font-size:14px;color:var(--cts-text-mid);margin-bottom:16px">
         Enviando a <strong>${c.nombre} ${c.apellido}</strong>
-        ${tel ? `(${c.telefono})` : '<span style="color:var(--danger)">Sin teléfono registrado</span>'}
+        ${tel ? `(${c.telefono})` : '<span style="color:var(--cts-danger)">Sin teléfono registrado</span>'}
       </p>
       <div style="margin-bottom:12px">
         <label>O escribe tu mensaje personalizado:</label>
@@ -926,7 +923,7 @@
           ${templates.map(t => `
             <div class="whatsapp-option" onclick="selectWATemplate(${t.id}, this)">
               <strong>${t.title}</strong>
-              <div style="font-size:11px;color:var(--gray-400);margin-top:2px">${t.text.substring(0, 60)}...</div>
+              <div style="font-size:11px;color:var(--cts-text-light);margin-top:2px">${t.text.substring(0, 60)}...</div>
             </div>
           `).join('')}
         </div>
@@ -996,7 +993,7 @@
       if (checked) done++;
       html += `<div class="checklist-item ${checked ? 'done' : ''}" onclick="toggleChecklist(${s.id})">
         <div class="cl-text"><div class="cl-title">Sección ${s.id}: ${s.title}</div><div class="cl-desc">${s.desc}</div></div>
-        <i class="fas fa-${checked ? 'check-circle' : 'circle'}" style="color:${checked ? 'var(--success)' : 'var(--gray-300)'};font-size:18px;margin-top:2px"></i>
+        <i class="fas fa-${checked ? 'check-circle' : 'circle'}" style="color:${checked ? 'var(--cts-success)' : 'var(--cts-beige-dark)'};font-size:18px;margin-top:2px"></i>
       </div>`;
     });
     container.innerHTML = html;
@@ -1023,7 +1020,7 @@
     templates.forEach(t => {
       html += `<div class="template-card" id="tmpl-${t.id}">
         <div class="temp-title">
-          <i class="fas ${t.icon || 'fa-comment'}" style="color:var(--primary)"></i>
+          <i class="fas ${t.icon || 'fa-comment'}" style="color:var(--cts-dark)"></i>
           <span class="tmpl-title">${t.title}</span>
           <div class="temp-actions">
             <button class="btn btn-sm btn-outline" onclick="editarPlantilla(${t.id})"><i class="fas fa-pen"></i></button>
@@ -1032,7 +1029,7 @@
           </div>
         </div>
         <div class="temp-text tmpl-text">${t.text.replace(/\n/g, '<br>')}</div>
-        <div style="font-size:11px;color:var(--gray-400);margin-top:6px">Variables: {{nombre}}, {{fecha}}, {{lugar}}</div>
+        <div style="font-size:11px;color:var(--cts-text-light);margin-top:6px">Variables: {{nombre}}, {{fecha}}, {{lugar}}</div>
       </div>`;
     });
     container.innerHTML = html;
@@ -1054,7 +1051,7 @@
       <div class="form-group"><label>Icono (clase FontAwesome)</label><input type="text" id="editTmplIcon" value="fa-comment" placeholder="fa-hand-wave, fa-bell, etc."></div>
       <div class="form-group"><label>Mensaje</label>
         <textarea id="editTmplText" rows="10" style="font-family:monospace;font-size:13px">${text}</textarea>
-        <div style="font-size:11px;color:var(--gray-400);margin-top:4px">Usa {{nombre}}, {{fecha}}, {{lugar}} como variables</div>
+        <div style="font-size:11px;color:var(--cts-text-light);margin-top:4px">Usa {{nombre}}, {{fecha}}, {{lugar}} como variables</div>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-outline" onclick="closeTemplateModal()">Cancelar</button>
@@ -1072,7 +1069,7 @@
       <div class="form-group"><label>Icono</label><input type="text" id="editTmplIcon" value="fa-comment" placeholder="fa-hand-wave, fa-bell, etc."></div>
       <div class="form-group"><label>Mensaje</label>
         <textarea id="editTmplText" rows="10" style="font-family:monospace;font-size:13px" placeholder="Escribe tu plantilla aquí..."></textarea>
-        <div style="font-size:11px;color:var(--gray-400);margin-top:4px">Usa {{nombre}}, {{fecha}}, {{lugar}} como variables</div>
+        <div style="font-size:11px;color:var(--cts-text-light);margin-top:4px">Usa {{nombre}}, {{fecha}}, {{lugar}} como variables</div>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-outline" onclick="closeTemplateModal()">Cancelar</button>
@@ -1125,7 +1122,7 @@
       html += '<tr>' + campos.map(campo => `<td>${c[campo] || '-'}</td>`).join('') + '</tr>';
     });
     if (clients.length > 5) {
-      html += `<tr><td colspan="${campos.length}" style="text-align:center;color:var(--gray-400);font-style:italic">... y ${clients.length - 5} clientes más</td></tr>`;
+      html += `<tr><td colspan="${campos.length}" style="text-align:center;color:var(--cts-text-light);font-style:italic">... y ${clients.length - 5} clientes más</td></tr>`;
     }
     html += '</tbody></table>';
     container.innerHTML = html;

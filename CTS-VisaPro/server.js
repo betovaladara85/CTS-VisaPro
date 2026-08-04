@@ -5,6 +5,8 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const XLSX = require('xlsx');
 const db = require('./db');
 
@@ -28,6 +30,32 @@ app.use('/uploads', express.static(uploadsDir));
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+// ---------- Passport Google OAuth ----------
+if (process.env.GOOGLE_CLIENT_ID) {
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback'
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      const email = profile.emails[0].value;
+      let user = await db.findUserByEmail(email);
+      if (!user) {
+        done(null, false, { message: 'No hay cuenta asociada a este correo. Solicita acceso al administrador.' });
+        return;
+      }
+      done(null, user);
+    } catch (err) {
+      done(err, null);
+    }
+  }));
+  passport.serializeUser((user, done) => done(null, user.id));
+  passport.deserializeUser(async (id, done) => {
+    try { done(null, { id }); } catch (err) { done(err, null); }
+  });
+  app.use(passport.initialize());
+}
 
 // ---------- Auth Middleware ----------
 function authMiddleware(role) {
@@ -74,6 +102,29 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/logout', (req, res) => { res.clearCookie('token'); res.redirect('/login'); });
+
+// Google OAuth routes
+app.get('/auth/google', (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.redirect('/login?error=google_not_configured');
+  }
+  passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' })(req, res, next);
+});
+
+app.get('/auth/google/callback', (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.redirect('/login?error=google_not_configured');
+  }
+  passport.authenticate('google', { failureRedirect: '/login?error=no_account' }, (err, user, info) => {
+    if (err || !user) {
+      return res.redirect('/login?error=' + encodeURIComponent(info?.message || 'no_account'));
+    }
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
+    res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    if (user.role === 'admin') return res.redirect('/admin');
+    return res.redirect('/cliente');
+  })(req, res, next);
+});
 
 app.get('/api/me', (req, res) => {
   const token = req.cookies.token;
@@ -141,8 +192,8 @@ app.post('/api/admin/clientes/:id/reset-password', authMiddleware('admin'), asyn
 // EXPORT Excel
 app.get('/api/admin/exportar/excel', authMiddleware('admin'), async (req, res) => {
   const clients = await db.getClients('', 'all');
-  const fields = ['nombre','apellido','email','telefono','pasaporte','fecha_nacimiento','lugar_nacimiento','nacionalidad','genero','estado_civil','ocupacion','pais_emision','fecha_expedicion','fecha_vencimiento','direccion','ciudad','estado','codigo_postal','proposito_viaje','fecha_viaje','duracion','alojamiento','gastos_pagados_por','viaje_previo','visa_previa','negacion','familiares_usa','notas','estado','fecha_registro'];
-  const labels = ['Nombre','Apellido','Email','Teléfono','Pasaporte','Fecha Nacimiento','Lugar Nacimiento','Nacionalidad','Género','Estado Civil','Ocupación','País Emisión','Fecha Expedición','Vencimiento Pasaporte','Dirección','Ciudad','Estado','Código Postal','Propósito Viaje','Fecha Viaje','Duración (días)','Alojamiento','Gastos Pagados Por','Viaje Previo USA','Visa Previa','Negación Visa','Familiares USA','Notas','Estado','Fecha Registro'];
+  const fields = ['nombre','apellido','email','telefono','pasaporte','fecha_nacimiento','lugar_nacimiento','nacionalidad','genero','estado_civil','ocupacion','pais_emision','fecha_expedicion','fecha_vencimiento','direccion','ciudad','codigo_postal','proposito_viaje','fecha_viaje','duracion','alojamiento','gastos_pagados_por','viaje_previo','visa_previa','negacion','familiares_usa','notas','estado','fecha_registro'];
+  const labels = ['Nombre','Apellido','Email','Teléfono','Pasaporte','Fecha Nacimiento','Lugar Nacimiento','Nacionalidad','Género','Estado Civil','Ocupación','País Emisión','Fecha Expedición','Vencimiento Pasaporte','Dirección','Ciudad','Código Postal','Propósito Viaje','Fecha Viaje','Duración (días)','Alojamiento','Gastos Pagados Por','Viaje Previo USA','Visa Previa','Negación Visa','Familiares USA','Notas','Estado','Fecha Registro'];
   const data = clients.map(c => {
     const row = {};
     fields.forEach((f, i) => { row[labels[i]] = c[f] || ''; });
@@ -160,8 +211,8 @@ app.get('/api/admin/exportar/excel', authMiddleware('admin'), async (req, res) =
 
 app.get('/api/admin/exportar/csv', authMiddleware('admin'), async (req, res) => {
   const clients = await db.getClients('', 'all');
-  const fields = ['nombre','apellido','email','telefono','pasaporte','fecha_nacimiento','lugar_nacimiento','nacionalidad','genero','estado_civil','ocupacion','pais_emision','fecha_expedicion','fecha_vencimiento','direccion','ciudad','estado','codigo_postal','proposito_viaje','fecha_viaje','duracion','alojamiento','gastos_pagados_por','viaje_previo','visa_previa','negacion','familiares_usa','notas','estado','fecha_registro'];
-  const labels = ['Nombre','Apellido','Email','Teléfono','Pasaporte','Fecha Nacimiento','Lugar Nacimiento','Nacionalidad','Género','Estado Civil','Ocupación','País Emisión','Fecha Expedición','Vencimiento Pasaporte','Dirección','Ciudad','Estado','Código Postal','Propósito Viaje','Fecha Viaje','Duración (días)','Alojamiento','Gastos Pagados Por','Viaje Previo USA','Visa Previa','Negación Visa','Familiares USA','Notas','Estado','Fecha Registro'];
+  const fields = ['nombre','apellido','email','telefono','pasaporte','fecha_nacimiento','lugar_nacimiento','nacionalidad','genero','estado_civil','ocupacion','pais_emision','fecha_expedicion','fecha_vencimiento','direccion','ciudad','codigo_postal','proposito_viaje','fecha_viaje','duracion','alojamiento','gastos_pagados_por','viaje_previo','visa_previa','negacion','familiares_usa','notas','estado','fecha_registro'];
+  const labels = ['Nombre','Apellido','Email','Teléfono','Pasaporte','Fecha Nacimiento','Lugar Nacimiento','Nacionalidad','Género','Estado Civil','Ocupación','País Emisión','Fecha Expedición','Vencimiento Pasaporte','Dirección','Ciudad','Código Postal','Propósito Viaje','Fecha Viaje','Duración (días)','Alojamiento','Gastos Pagados Por','Viaje Previo USA','Visa Previa','Negación Visa','Familiares USA','Notas','Estado','Fecha Registro'];
   const rows = [labels];
   clients.forEach(c => {
     rows.push(fields.map(f => {
@@ -184,6 +235,7 @@ app.post('/api/admin/checklist', authMiddleware('admin'), async (req, res) => {
 app.get('/api/admin/checklist', authMiddleware('admin'), async (req, res) => {
   res.json(await db.getChecklist());
 });
+
 // WHATSAPP LOG
 app.post('/api/admin/whatsapp/log', authMiddleware('admin'), async (req, res) => {
   const { client_id, template_id, message } = req.body;
