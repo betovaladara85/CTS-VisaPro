@@ -42,8 +42,16 @@ if (process.env.GOOGLE_CLIENT_ID) {
       const email = profile.emails[0].value;
       let user = await db.findUserByEmail(email);
       if (!user) {
-        done(null, false, { message: 'No hay cuenta asociada a este correo. Solicita acceso al administrador.' });
-        return;
+        const nombre = profile.displayName || profile.name?.givenName || '';
+        const apellido = profile.name?.familyName || '';
+        user = await db.createUser(email, '', nombre, apellido, 'client');
+        if (user.role === 'client') {
+          const clients = await db.getClients('', 'all');
+          const existing = clients.find(c => c.email === email);
+          if (!existing) {
+            await db.createClient({ nombre, apellido, email, telefono: '', pasaporte: '', estado: 'proceso' });
+          }
+        }
       }
       done(null, user);
     } catch (err) {
