@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CONALEP Mérida III — Recorrido Virtual 3D</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:'Segoe UI',Arial,sans-serif;color:#fff}
+canvas{display:block;position:fixed;top:0;left:0;z-index:1}
+
+#ui{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);backdrop-filter:blur(10px);border-radius:14px;padding:10px 18px;display:flex;align-items:center;gap:12px;font-size:12px;z-index:10;border:1px solid rgba(255,255,255,.08);pointer-events:none;flex-wrap:wrap;justify-content:center}
+#ui kbd{background:rgba(255,255,255,.12);padding:2px 7px;border-radius:4px;font-size:11px;border:1px solid rgba(255,255,255,.15)}
+#ui .sep{opacity:.2}
+#ui .ctx{color:#4fc3f7}
+
+#titulo{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,126,103,.92);backdrop-filter:blur(10px);border-radius:12px;padding:8px 20px;z-index:10;text-align:center;border:1px solid rgba(255,255,255,.08);pointer-events:none}
+#titulo h1{font-size:15px;font-weight:700;letter-spacing:.3px}
+#titulo p{font-size:10px;opacity:.75;margin-top:1px}
+
+#info-npc,#info-door{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);backdrop-filter:blur(4px);border-radius:10px;padding:6px 14px;font-size:12px;z-index:15;display:none;border:1px solid rgba(255,255,255,.06);pointer-events:none;white-space:nowrap}
+#info-door{color:#ffd54f}
+
+#dialogo{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(10,10,20,.92);backdrop-filter:blur(14px);border-radius:16px;padding:20px 28px;max-width:480px;width:90%;z-index:20;display:none;border:1px solid rgba(255,255,255,.1);box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#dialogo .nombre{font-size:14px;font-weight:700;color:#4fc3f7;margin-bottom:4px}
+#dialogo .mensaje{font-size:14px;line-height:1.5;color:rgba(255,255,255,.85)}
+#dialogo .cerrar{margin-top:12px;background:rgba(255,255,255,.1);border:none;color:#fff;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:12px}
+
+#cargando{position:fixed;inset:0;z-index:100;background:linear-gradient(135deg,#0a0a1a,#1a2a1a);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .8s}
+#cargando .spinner{width:44px;height:44px;border:3px solid rgba(255,255,255,.06);border-top-color:#007e67;border-radius:50%;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#cargando .bar{width:200px;height:3px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}
+#cargando .bar-inner{height:100%;width:0;background:#007e67;animation:load 2s ease forwards}
+@keyframes load{to{width:100%}}
+#cargando.oculto{opacity:0;pointer-events:none}
+
+#error-box{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(200,30,30,.95);color:#fff;padding:20px 30px;border-radius:12px;z-index:999;max-width:500px;text-align:center;font-size:14px;line-height:1.5;display:none}
+</style>
+</head>
+<body>
+
+<div id="cargando">
+  <div class="spinner"></div>
+  <div class="bar"><div class="bar-inner"></div></div>
+  <span>CONALEP Mérida III</span>
+  <div id="carga-msg" style="font-size:11px;opacity:.5">Cargando Three.js...</div>
+</div>
+
+<div id="titulo"><h1>🏫 CONALEP Mérida III</h1><p>Recorrido virtual interactivo</p></div>
+
+<div id="info-npc"></div>
+<div id="info-door"></div>
+
+<div id="dialogo">
+  <div class="nombre"></div>
+  <div class="mensaje"></div>
+  <button class="cerrar">Cerrar</button>
+</div>
+
+<div id="ui">
+  <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Caminar</span>
+  <span class="sep">|</span>
+  <span><kbd>Mouse</kbd> Mirar</span>
+  <span class="sep">|</span>
+  <span><kbd>E</kbd> Interactuar</span>
+  <span class="sep">|</span>
+  <span><kbd>Shift</kbd> Correr</span>
+</div>
+
+<div id="error-box"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// === Mostrar errores ===
+window.onerror=function(msg,s,ln){var eb=document.getElementById('error-box');if(eb){eb.style.display='block';eb.innerHTML='<strong>Error:</strong> '+msg+(ln?'<br><small>Línea '+ln+'</small>':'')}};
+
+// === Si THREE no carga, reintentar ===
+var cargarMundo=function(){
+  if(!window.THREE||!THREE.WebGLRenderer){document.getElementById('carga-msg').textContent='Esperando Three.js...';setTimeout(cargarMundo,200);return}
+  construir();
+};
+setTimeout(cargarMundo,100);
+
+function construir(){
+document.getElementById('carga-msg').textContent='Construyendo escenario...';
+
+var THREE=window.THREE;
+var PI=Math.PI,HPI=PI/2;
+
+// ===== RENDERER =====
+var scene=new THREE.Scene();
+scene.background=new THREE.Color(0x87ceeb);
+scene.fog=new THREE.Fog(0x87ceeb,180,350);
+
+var camera=new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight,0.1,500);
+camera.position.set(10,8,5);
+
+var renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+document.body.prepend(renderer.domElement);
+
+// ===== LIGHTS =====
+scene.add(new THREE.AmbientLight(0x8899bb,0.6));
+scene.add(new THREE.HemisphereLight(0x87ceeb,0x3a7d44,0.7));
+var sun=new THREE.DirectionalLight(0xfff3d0,1.4);
+sun.position.set(60,100,40);
+sun.castShadow=true;
+sun.shadow.mapSize.width=2048;
+sun.shadow.mapSize.height=2048;
+sun.shadow.camera.left=-100;
+sun.shadow.camera.right=100;
+sun.shadow.camera.top=100;
+sun.shadow.camera.bottom=-100;
+sun.shadow.camera.far=300;
+scene.add(sun);
+
+// ===== MATERIALS =====
+function mat(c,r,m,e){return new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m||0})}
+var M_green=mat(0x007e67,0.4,0.1);
+var M_wall=mat(0xf0ebe0,0.7,0);
+var M_roof=mat(0xcc5533,0.7,0);
+var M_window=mat(0x88ccff,0.2,0.3);
+var M_glass=mat(0xaaddff,0.1,0);
+var M_door=mat(0x7a3b10,0.6,0.2);
+var M_grass=mat(0x6da56a,0.9,0);
+var M_grass2=mat(0x4a8a47,0.9,0);
+var M_asphalt=mat(0x3a3a3a,0.85,0.05);
+var M_concrete=mat(0xcccccc,0.7,0);
+var M_floor=mat(0x999999,0.8,0);
+var M_white=mat(0xffffff,0.5,0);
+var M_red=mat(0xcc3333,0.4,0.1);
+var M_blue=mat(0x2255aa,0.3,0.2);
+var M_metal=mat(0x888888,0.3,0.8);
+var M_skin=mat(0xf0c8a0,0.5,0);
+var M_shirt=mat(0xffffff,0.5,0);
+var M_pants=mat(0x2c3e50,0.6,0);
+var M_shoes=mat(0x1a1a1a,0.8,0);
+var M_brown=mat(0x5a3a1a,0.9,0);
+var M_leaf=mat(0x2d7a2d,0.8,0);
+var M_pink=mat(0xff8ec7,0.4,0);
+var M_yellow=mat(0xffd93d,0.4,0);
+var M_orange=mat(0xff8c42,0.4,0);
+
+// ===== HELPERS =====
+function box(w,h,d,m,x,y,z,p){
+  var o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;
+  (p||scene).add(o);return o;
+}
+
+// ===== GROUND =====
+var ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),M_grass);
+ground.rotation.x=-HPI;ground.receiveShadow=true;scene.add(ground);
+box(40,0.02,30,M_grass2,-20,0.02,15);
+
+// ===== BUILDINGS =====
+function makeBuilding(w,d,floors,wallM,roofM,x,z){
+  var h=floors*3.5;
+  box(w,h,d,wallM,x,h/2,z);
+  box(w+0.6,0.25,d+0.6,roofM,x,h+0.125,z);
+  for(var f=0;f<floors;f++)for(var i=0;i<Math.floor(w/2.5);i++){
+    var wx=x-w/2+1.5+i*2.5,wy=1.5+f*3.5;
+    box(0.04,1.1,1.1,M_window,wx,wy,z+d/2+0.04);
+    box(0.04,1.1,1.1,M_window,wx,wy,z-d/2-0.04);
+  }
+}
+
+// Main building
+var mX=-5,mZ=-22;
+makeBuilding(40,12,2,M_wall,M_roof,mX,mZ);
+box(8,3.2,3.8,M_wall,mX,5.6,mZ+6.5);
+box(8,0.4,4.5,M_roof,mX,5.75,mZ+6.5);
+box(2.8,2.8,0.08,M_door,mX,1.4,mZ+6.85);
+box(6,0.7,0.08,M_green,mX,6.5,mZ-6.05);
+for(var i=0;i<7;i++)box(0.5,0.5,0.1,M_white,mX-2.8+i*0.9,6.5,mZ-6.1);
+
+// Admin
+var aX=-18,aZ=-22;
+makeBuilding(10,12,1,M_wall,M_roof,aX,aZ);
+box(1.8,2.5,0.08,M_door,aX,1.25,aZ+6.15);
+
+// Library
+var lX=-12,lZ=-42;
+makeBuilding(12,10,1,M_wall,M_roof,lX,lZ);
+box(2,2.5,0.08,M_door,lX,1.25,lZ+5.15);
+
+// Covered court
+var cX=-35,cZ=5;
+box(28,0.15,18,M_concrete,cX,0.08,cZ);
+for(var d of[-13,-6,6,13])for(var dz of[-8,8])box(0.25,6.5,0.25,M_metal,cX+d,3.25,cZ+dz);
+for(var x2=-12;x2<=12;x2+=2.5)box(22,0.06,0.5,M_blue,cX,7.1,cZ+x2);
+box(26.5,0.06,1.5,M_blue,cX,7.1,cZ-9.2);
+box(26.5,0.06,1.5,M_blue,cX,7.1,cZ+9.2);
+for(var i2=0;i2<4;i2++)box(8,0.3+0.1*i2,1.8,M_concrete,cX-16,0.15+i2*0.35,cZ);
+
+// Workshop
+var wX=42,wZ=-12;
+makeBuilding(22,14,1,M_wall,M_roof,wX,wZ);
+for(var d2 of[-6,0,6])box(3.2,3.2,0.08,M_metal,wX+d2,1.6,wZ+7.05);
+box(6,0.45,0.08,M_red,wX,4.2,wZ-7.05);
+
+// Computer center
+var ccX=20,ccZ=-40;
+makeBuilding(14,10,1,M_wall,M_roof,ccX,ccZ);
+box(4,0.35,0.08,M_blue,ccX,3.8,ccZ-5.05);
+
+// Auditorium
+var auX=5,auZ=-48;
+makeBuilding(18,14,1,M_wall,M_roof,auX,auZ);
+box(18,0.25,5,M_concrete,auX,3.5,auZ+4);
+
+// Plaza
+var pZ=-8;
+box(30,0.12,16,M_concrete,mX,0.06,pZ);
+for(var j=0;j<3;j++)box(30,0.015,0.4,M_green,mX,0.12,pZ-3+j*3);
+box(0.4,0.015,16,M_green,mX-6,0.12,pZ);
+box(0.4,0.015,16,M_green,mX+6,0.12,pZ);
+box(0.12,12,0.12,M_metal,mX,6,pZ+1);
+
+// Flag
+var flagG=new THREE.Group();
+box(0.06,5,0.06,M_metal,0,2.5,0,flagG);
+box(0.01,1,2,M_yellow,0,3.5,0,flagG);
+box(0.01,1,2,M_white,0,3.5,-0.01,flagG);
+box(0.01,0.3,2,M_pink,0,2.7,0,flagG);
+flagG.position.set(mX,8,pZ+1.5);scene.add(flagG);
+
+// Parking
+var pkX=32,pkZ=22;
+box(30,0.08,22,M_asphalt,pkX,0.04,pkZ);
+for(var i3=0;i3<6;i3++)box(0.03,0.015,3.5,M_white,pkX-10+i3*4,0.1,pkZ-4);
+
+function car(cx,cz,cl){
+  var g=new THREE.Group();
+  box(2.1,0.45,1,mat(cl,0.3,0.4),0,0.22,0,g);
+  box(1.1,0.3,0.95,mat(0x88bbdd,0.2,0.1),0,0.52,0,g);
+  box(0.15,0.2,0.15,M_shoes,-0.65,0.03,-0.5,g);
+  box(0.15,0.2,0.15,M_shoes,-0.65,0.03,0.5,g);
+  box(0.15,0.2,0.15,M_shoes,0.65,0.03,-0.5,g);
+  box(0.15,0.2,0.15,M_shoes,0.65,0.03,0.5,g);
+  g.position.set(cx,0.1,cz);g.rotation.y=Math.random()*0.4;scene.add(g);
+}
+car(pkX-8,pkZ-3,0xcc3333);car(pkX-4,pkZ-3,0x3355aa);
+car(pkX,pkZ-3,0xeeeeee);car(pkX-6,pkZ+1,0x44aa44);car(pkX-2,pkZ+1,0xffaa00);
+
+// Roads
+box(3,0.06,30,M_asphalt,55,0.03,20);
+box(28,0.06,3.5,M_asphalt,28,0.03,2);
+box(14,0.06,3.5,M_asphalt,-2,0.03,2);
+box(3.5,0.06,18,M_asphalt,38,0.03,-5);
+box(3.5,0.06,14,M_asphalt,-35,0.03,-10);
+
+// Wall
+function mkW(x1,z1,x2,z2){
+  var dx=x2-x1,dz=z2-z1,len=Math.sqrt(dx*dx+dz*dz),ang=Math.atan2(dx,dz),segs=Math.floor(len/3);
+  for(var i=0;i<segs;i++){
+    var wx=x1+dx*(i+0.5)/segs,wz=z1+dz*(i+0.5)/segs;
+    var w=box(len/segs-0.1,2.4,0.12,M_white,wx,1.2,wz);w.rotation.y=ang;
+  }
+}
+mkW(-60,-55,60,-55);mkW(-60,35,60,35);mkW(-60,-55,-60,35);mkW(60,-55,60,35);
+
+// Trees
+function palm(x,z,s){
+  box(0.25*s,3.5*s,0.25*s,M_brown,x,1.75*s,z);
+  for(var i=0;i<8;i++){var a=i*PI/4;
+    box(1.6*s,0.04*s,0.35*s,M_leaf,x+Math.cos(a)*s,4.2*s,z+Math.sin(a)*s).rotation.z=a;
+  }
+}
+function tree(x,z,s){
+  box(0.25*s,2.2*s,0.25*s,M_brown,x,1.1*s,z);
+  box(2.5*s,1.8*s,2.5*s,M_leaf,x,3.2*s,z);
+}
+var tps=[[-40,-50],[-30,-50],[-20,-50],[-10,-50],[0,-50],[10,-50],[20,-50],[30,-50],[40,-50],[50,-50],[-55,-38],[-55,-28],[-55,-18],[-55,-8],[-55,2],[-55,12],[-55,22],[-55,30],[55,-38],[55,-28],[55,-18],[-50,32],[-40,32],[-30,32],[-20,32],[-10,32],[0,32],[10,32],[50,32],[55,32],[-30,5],[-25,5],[-20,5],[35,-5],[40,-5],[45,-5],[15,-10],[25,-10]];
+for(var i4=0;i4<tps.length;i4++){
+  var tp=tps[i4];
+  if(Math.random()>0.4)palm(tp[0],tp[1],0.7+Math.random()*0.5);else tree(tp[0],tp[1],0.7+Math.random()*0.4);
+}
+// Park benches
+for(var i5=0;i5<6;i5++){var bx=mX-4+i5*3;box(1.4,0.08,0.45,M_brown,bx,0.12,pZ-2);box(1.4,0.4,0.05,M_brown,bx,0.32,pZ-2.15);box(1.4,0.4,0.05,M_brown,bx,0.32,pZ-1.85)}
+
+// ===== INTERIORS (underground) =====
+var INTER_Y=-80;
+var interiors={};
+var currentInterior=null;
+var prevPlayerPos=null,prevCamYaw=null,prevCamPitch=null;
+
+function makeInterior(id){
+  var g=new THREE.Group();
+  g.visible=false;
+  g.position.y=INTER_Y;
+  scene.add(g);
+  interiors[id]=g;
+  return g;
+}
+
+// --- AULA ---
+var aula=makeInterior('aula');
+box(14,3.2,10,M_white,0,1.6,0,aula);
+box(14,0.15,10,M_floor,0,0,0,aula);
+box(14,0.12,10,M_white,0,3.2,0,aula);
+for(var r=0;r<4;r++)for(var c=0;c<3;c++){
+  var dx=-3+c*3,dz=-2.5+r*1.6;
+  box(1.2,0.04,0.8,M_brown,dx,0.72,dz,aula);
+  box(1.1,0.6,0.7,M_white,dx,0.4,dz,aula);
+  box(0.35,0.35,0.35,M_blue,-3+c*3,0.45,-2.7+r*1.6,aula);
+}
+box(1.6,0.04,1,M_brown,0,0.72,-3.8,aula);
+box(4,0.04,1.5,M_white,0,2.2,-4.95,aula);
+aula.userData={enterX:0,enterZ:4.5,exitX:mX-2,exitZ:mZ+6};
+
+// --- TALLER ---
+var taller=makeInterior('taller');
+box(20,4.5,12,M_white,0,2.25,0,taller);
+box(20,0.15,12,M_floor,0,0,0,taller);
+box(20,0.12,12,M_white,0,4.5,0,taller);
+box(4,0.06,1.5,M_metal,4,0.15,2,taller);
+box(0.8,0.6,0.5,M_metal,-4,0.3,2,taller);
+box(1.5,1.2,0.5,M_metal,-6,0.6,0,taller);
+box(2,0.04,1,M_brown,-5,1.2,-4,taller);
+for(var i6=0;i6<3;i6++)box(0.6,0.15,0.6,M_shoes,5,0.25+i6*0.15,-4,taller);
+box(0.5,0.6,0.5,M_orange,6,0.3,-3,taller);
+box(0.5,0.6,0.5,M_blue,6.8,0.3,-3,taller);
+taller.userData={enterX:0,enterZ:5.5,exitX:wX,exitZ:wZ+6.5};
+
+// --- LAB ENFERMERIA ---
+var lab=makeInterior('enfermeria');
+box(16,3.5,12,M_white,0,1.75,0,lab);
+box(16,0.15,12,M_floor,0,0,0,lab);
+box(16,0.12,12,M_white,0,3.5,0,lab);
+for(var i7=0;i7<3;i7++){
+  var bx2=-4+i7*4;
+  box(0.7,0.04,2,M_metal,bx2,0.22,-1.5,lab);
+  box(0.65,0.02,1.9,M_white,bx2,0.25,-1.5,lab);
+}
+box(1.2,1.4,0.5,M_metal,-6,0.7,3,lab);
+box(0.8,0.04,0.5,M_metal,0,0.9,3,lab);
+box(0.8,0.04,1.8,M_metal,6,0.55,-2,lab);
+box(0.75,0.02,1.75,M_white,6,0.57,-2,lab);
+lab.userData={enterX:0,enterZ:5.5,exitX:ccX,exitZ:ccZ+5};
+
+// --- LAB GRAFICA ---
+var graf=makeInterior('grafica');
+box(16,3.5,12,M_white,0,1.75,0,graf);
+box(16,0.15,12,M_floor,0,0,0,graf);
+box(16,0.12,12,M_white,0,3.5,0,graf);
+for(var r2=0;r2<2;r2++)for(var c2=0;c2<4;c2++){
+  var dx2=-5.5+c2*3.2,dz2=-2+r2*3.5;
+  box(1.2,0.04,0.8,M_brown,dx2,0.72,dz2,graf);
+  box(0.7,0.02,0.5,M_blue,dx2,1.2,dz2,graf);
+}
+box(1.5,0.04,1,M_brown,0,0.72,-3.5,graf);
+box(4,0.04,1.5,M_white,0,2.2,-5.95,graf);
+graf.userData={enterX:0,enterZ:5.5,exitX:ccX-2,exitZ:ccZ+5};
+
+// ===== CHARACTERS (Roblox style) =====
+function createChar(cfg){
+  var g=new THREE.Group();
+  box(0.55,0.55,0.55,cfg.skin||M_skin,0,1.75,0,g);
+  box(0.6,0.12,0.6,cfg.hairM||mat(cfg.hair||0x442211,0.7,0),0,2.05,0,g);
+  var em=mat(0x222,0.3,0);
+  box(0.08,0.08,0.04,em,-0.12,1.8,0.28,g);
+  box(0.08,0.08,0.04,em,0.12,1.8,0.28,g);
+  box(0.65,0.65,0.38,cfg.shirt||M_shirt,0,1.1,0,g);
+  box(0.18,0.65,0.18,cfg.shirt||M_shirt,-0.44,1.0,0,g);
+  box(0.18,0.65,0.18,cfg.shirt||M_shirt,0.44,1.0,0,g);
+  box(0.16,0.08,0.16,cfg.skin||M_skin,-0.44,0.65,0,g);
+  box(0.16,0.08,0.16,cfg.skin||M_skin,0.44,0.65,0,g);
+  box(0.25,0.65,0.25,cfg.pants||M_pants,-0.15,0.32,0,g);
+  box(0.25,0.65,0.25,cfg.pants||M_pants,0.15,0.32,0,g);
+  box(0.28,0.08,0.35,cfg.shoes||M_shoes,-0.15,0.04,0.03,g);
+  box(0.28,0.08,0.35,cfg.shoes||M_shoes,0.15,0.04,0.03,g);
+  g.userData={parts:{al:g.children[5],ar:g.children[6],ll:g.children[9],lr:g.children[10]}};
+  return g;
+}
+
+var player=createChar({skin:M_skin,shirt:mat(0x2255cc,0.4,0.1),pants:mat(0x334466,0.5,0),hair:0x442211,shoes:mat(0xddd,0.5,0)});
+player.position.set(mX+5,0,pZ+3);scene.add(player);
+
+var guard=createChar({skin:M_skin,shirt:mat(0x1a3a5c,0.5,0.1),pants:mat(0x1a3a5c,0.5,0),hair:0x222222,shoes:mat(0x111,0.8,0)});
+guard.position.set(55,0,20);
+guard.userData={role:'guardia',dialogos:["Bienvenido al CONALEP Plantel Mérida III.","El plantel también se llama Rita Cetina Gutiérrez desde 2025.","Las instalaciones abren de 7 AM a 9 PM."],patrolS:56,patrolE:58,patrolD:1};
+scene.add(guard);
+
+var counselor=createChar({skin:M_skin,shirt:M_white,pants:mat(0x2c3e50,0.5,0),hair:0x884422,shoes:mat(0x333,0.6,0)});
+counselor.position.set(aX+2,0,aZ-8);
+counselor.userData={role:'orientador',dialogos:["¡Hola! Ofrecemos Autotransporte, Enfermería y Gráfica Digital.","El plantel tiene convenio con empresas para prácticas."]};
+scene.add(counselor);
+
+var director=createChar({skin:M_skin,shirt:mat(0x003366,0.3,0.2),pants:mat(0x222244,0.4,0.1),hair:0x332211,shoes:mat(0x111,0.7,0)});
+director.position.set(aX-1,0,aZ-5);
+director.userData={role:'directora',dialogos:["El plantel abrió sus puertas en 2010.","Formamos profesionales técnicos de excelencia."]};
+scene.add(director);
+
+var instAuto=createChar({skin:M_skin,shirt:mat(0xcc6600,0.4,0.1),pants:mat(0x222244,0.5,0),hair:0x332211,shoes:mat(0x222,0.7,0)});
+instAuto.position.set(-3,0,0);taller.add(instAuto);
+instAuto.userData={role:'instructor_auto',dialogos:["Soy instructor de Autotransporte.","Presiona E para practicar estacionamiento."]};
+
+var instEnf=createChar({skin:M_skin,shirt:M_white,pants:mat(0x4488cc,0.4,0.1),hair:0x442211,shoes:mat(0xeee,0.5,0)});
+instEnf.position.set(-2,0,0);lab.add(instEnf);
+instEnf.userData={role:'instructor_enf',dialogos:["Soy instructora de Enfermería.","Presiona E para jugar memorama."]};
+
+var instGraf=createChar({skin:M_skin,shirt:mat(0x9933cc,0.3,0.2),pants:mat(0x222244,0.5,0),hair:0x884422,shoes:mat(0x333,0.6,0)});
+instGraf.position.set(-2,0,0);graf.add(instGraf);
+instGraf.userData={role:'instructor_graf',dialogos:["Soy instructor de Gráfica Digital.","Presiona E para abrir el editor pixel art."]};
+
+// ===== CONTROLS =====
+var keys={};
+var yaw=0,pitch=-0.15,isPL=false;
+document.addEventListener('keydown',function(e){
+  var k=e.key.toLowerCase();keys[k]=true;
+  if(k==='e'&&!dialogActive){
+    if(nearDoor&&!currentInterior)enterInterior(nearDoor.interior);
+    else if(currentInterior)exitInterior();
+    else if(selectedNPC)showDialog(selectedNPC);
+  }
+});
+document.addEventListener('keyup',function(e){keys[e.key.toLowerCase()]=false});
+document.addEventListener('click',function(){if(!isPL&&!dialogActive)renderer.domElement.requestPointerLock()});
+document.addEventListener('pointerlockchange',function(){isPL=!!document.pointerLockElement});
+document.addEventListener('mousemove',function(e){if(!isPL)return;yaw-=e.movementX*0.003;pitch-=e.movementY*0.003;pitch=Math.max(-0.8,Math.min(0.6,pitch))});
+
+// ===== ENTRY/EXIT =====
+var doorTriggers=[
+  {interior:'aula',x:mX,z:mZ+7.5,radius:3,name:'Aulas'},
+  {interior:'taller',x:wX,z:wZ+7.5,radius:3,name:'Taller Autotransporte'},
+  {interior:'enfermeria',x:ccX,z:ccZ+5.5,radius:3,name:'Lab. Enfermería'},
+  {interior:'grafica',x:ccX-2,z:ccZ+5.5,radius:3,name:'Lab. Gráfica Digital'},
+];
+var nearDoor=null;
+var infoDoor=document.getElementById('info-door');
+
+function enterInterior(id){
+  var it=interiors[id];
+  if(!it||it.visible)return;
+  prevPlayerPos=player.position.clone();
+  prevCamYaw=yaw;prevCamPitch=pitch;
+  it.visible=true;
+  currentInterior=id;
+  player.position.set(it.userData.enterX,INTER_Y+0.1,it.userData.enterZ);
+  scene.background=new THREE.Color(0x2a2a3a);
+  document.getElementById('titulo').querySelector('p').textContent='Presiona E para salir';
+}
+function exitInterior(){
+  if(!currentInterior)return;
+  interiors[currentInterior].visible=false;
+  player.position.copy(prevPlayerPos);
+  yaw=prevCamYaw;pitch=prevCamPitch;
+  currentInterior=null;prevPlayerPos=null;
+  scene.background=new THREE.Color(0x87ceeb);
+  document.getElementById('titulo').querySelector('p').textContent='Recorrido virtual interactivo';
+}
+
+// ===== INTERACTION =====
+var raycaster=new THREE.Raycaster();
+var selectedNPC=null,dialogActive=false;
+var dE=document.getElementById('dialogo');
+var dN=dE.querySelector('.nombre'),dM=dE.querySelector('.mensaje');
+var infoNpc=document.getElementById('info-npc');
+var interactables=[guard,counselor,director,instAuto,instEnf,instGraf];
+dE.querySelector('.cerrar').addEventListener('click',function(){dE.style.display='none';dialogActive=false});
+
+function showDialog(npc){
+  var names={guardia:'Guardia',orientador:'Orientador',directora:'Directora',instructor_auto:'Instructor Autotransporte',instructor_enf:'Instructora Enfermería',instructor_graf:'Instructor Gráfica'};
+  var msgs=npc.userData.dialogos;
+  dN.textContent=names[npc.userData.role]||'NPC';
+  dM.textContent=msgs[Math.floor(Math.random()*msgs.length)];
+  dE.style.display='block';dialogActive=true;
+}
+
+// ===== ANIMATE =====
+var walkCycle=0;
+var clock=new THREE.Clock();
+var infoDoorEl=infoDoor;
+
+function animate(){
+  requestAnimationFrame(animate);
+  var dt=Math.min(clock.getDelta(),0.05);
+  var spd=keys['shift']?9:4.5;
+
+  if(!dialogActive&&player){
+    var fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+    var rgt=new THREE.Vector3(fwd.z,0,-fwd.x);
+    var mov=new THREE.Vector3();
+    if(keys['w'])mov.add(fwd);if(keys['s'])mov.sub(fwd);
+    if(keys['a'])mov.sub(rgt);if(keys['d'])mov.add(rgt);
+    if(mov.length()>0){
+      mov.normalize().multiplyScalar(spd*dt);
+      player.position.x+=mov.x;player.position.z+=mov.z;
+      var ta=Math.atan2(mov.x,mov.z);
+      var dd=ta-player.rotation.y;while(dd>PI)dd-=2*PI;while(dd<-PI)dd+=2*PI;
+      player.rotation.y+=dd*0.1;
+      walkCycle+=dt*8;
+      var sw=Math.sin(walkCycle)*0.3;
+      var p=player.userData.parts;
+      if(p){p.al.rotation.x=sw;p.ar.rotation.x=-sw;p.ll.rotation.x=-sw*0.5;p.lr.rotation.x=sw*0.5}
+    } else {
+      var p2=player.userData.parts;
+      if(p2){p2.al.rotation.x*=0.9;p2.ar.rotation.x*=0.9;p2.ll.rotation.x*=0.9;p2.lr.rotation.x*=0.9}
+    }
+  }
+
+  // Guard patrol
+  var gp=guard.position;
+  gp.x+=guard.userData.patrolD*1.5*dt;
+  if(gp.x>guard.userData.patrolE)guard.userData.patrolD=-1;
+  if(gp.x<guard.userData.patrolS)guard.userData.patrolD=1;
+  guard.rotation.y=guard.userData.patrolD>0?HPI:-HPI;
+  flagG.position.z=pZ+1.5+Math.sin(Date.now()*0.002)*0.3;
+
+  // Door proximity
+  if(!currentInterior){
+    var nearest=null,minDist=4;
+    for(var i=0;i<doorTriggers.length;i++){
+      var d3=doorTriggers[i];
+      var dist=player.position.distanceTo(new THREE.Vector3(d3.x,0,d3.z));
+      if(dist<d3.radius&&dist<minDist){nearest=d3;minDist=dist}
+    }
+    nearDoor=nearest;
+    if(nearest){infoDoor.textContent='🚪 '+nearest.name+' — Presiona E';infoDoor.style.display='block'}
+    else infoDoor.style.display='none';
+  } else {
+    infoDoor.textContent='🚪 Presiona E para salir';
+    infoDoor.style.display='block';
+  }
+
+  // NPC selection
+  if(!dialogActive&&isPL){
+    raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+    var meshes=[];
+    for(var j2=0;j2<interactables.length;j2++){
+      var n=interactables[j2];
+      for(var k2=0;k2<n.children.length;k2++)if(n.children[k2].isMesh)meshes.push(n.children[k2]);
+    }
+    var hits=raycaster.intersectObjects(meshes);
+    var found=null;
+    if(hits.length>0){
+      for(var m2=0;m2<hits.length;m2++){
+        var o=hits[m2].object;
+        while(o.parent){
+          if(interactables.indexOf(o)!==-1){found=o;break}
+          o=o.parent;
+        }
+        if(found)break;
+      }
+    }
+    if(!found&&currentInterior){
+      var list2=[instAuto,instEnf,instGraf];
+      for(var j3=0;j3<list2.length;j3++){
+        var n2=list2[j3];
+        var dd2=n2.position.distanceTo(player.position);
+        if(dd2<6)found=n2;
+      }
+    }
+    if(found!==selectedNPC){
+      selectedNPC=found;
+      if(found){
+        var names2={guardia:'Guardia',orientador:'Orientador',directora:'Directora',instructor_auto:'Instructor',instructor_enf:'Instructora',instructor_graf:'Instructor'};
+        infoNpc.textContent=names2[found.userData.role]+' — Presiona E';
+        infoNpc.style.display='block';
+      } else infoNpc.style.display='none';
+    }
+  } else if(!isPL){infoNpc.style.display='none'}
+
+  // Camera
+  var cd=6.5,ch=3.8;
+  var tgt=new THREE.Vector3(
+    player.position.x+Math.sin(yaw)*cd,
+    player.position.y+ch+pitch*1.8,
+    player.position.z+Math.cos(yaw)*cd
+  );
+  camera.position.lerp(tgt,0.1);
+  camera.lookAt(player.position.x,player.position.y+1.5,player.position.z);
+
+  renderer.render(scene,camera);
+}
+
+animate();
+setTimeout(function(){document.getElementById('cargando').classList.add('oculto')},800);
+document.getElementById('carga-msg').textContent='¡Listo! Haz clic para jugar';
+console.log('✅ CONALEP Mérida III 3D cargado');
+}
+</script>
+</body>
+</html>
