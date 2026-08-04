@@ -61,7 +61,7 @@ async function migratePostgres() {
       telefono TEXT DEFAULT '',
       direccion TEXT DEFAULT '',
       ciudad TEXT DEFAULT '',
-      estado TEXT DEFAULT '',
+      estado TEXT DEFAULT 'proceso',
       codigo_postal TEXT DEFAULT '',
       proposito_viaje TEXT DEFAULT '',
       fecha_viaje TEXT DEFAULT '',
