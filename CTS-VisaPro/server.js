@@ -42,21 +42,17 @@ if (process.env.GOOGLE_CLIENT_ID) {
       const email = profile.emails[0].value;
       let user = await db.findUserByEmail(email);
       if (!user) {
-        const nombre = profile.displayName || profile.name?.givenName || '';
+        const nombre = profile.displayName || profile.name?.givenName || email.split('@')[0];
         const apellido = profile.name?.familyName || '';
         try {
-          user = await db.createUser(email, '', nombre, apellido, 'client');
+          user = await db.createUser(email, 'google-oauth', nombre, apellido, 'client');
         } catch (e) {
           user = await db.findUserByEmail(email);
         }
-        if (user) {
-          try {
-            await db.createClient({ nombre, apellido, email, telefono: '', pasaporte: '', estado: 'proceso' });
-          } catch (e) {}
-        }
       }
       if (!user) return done(null, false, { message: 'No se pudo crear la cuenta.' });
-      done(null, user);
+      const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, process.env.JWT_SECRET || 'visapro-secret-key-change-in-production', { expiresIn: '24h' });
+      done(null, { ...user, _token: token });
     } catch (err) {
       done(err, null);
     }
@@ -130,7 +126,8 @@ app.get('/auth/google/callback', (req, res, next) => {
     if (err || !user) {
       return res.redirect('/login?error=' + encodeURIComponent(info?.message || 'no_account'));
     }
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
+    const token = user._token || jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
+    delete user._token;
     res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
     if (user.role === 'admin') return res.redirect('/admin');
     return res.redirect('/cliente');
