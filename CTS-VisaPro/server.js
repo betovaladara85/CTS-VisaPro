@@ -44,15 +44,18 @@ if (process.env.GOOGLE_CLIENT_ID) {
       if (!user) {
         const nombre = profile.displayName || profile.name?.givenName || '';
         const apellido = profile.name?.familyName || '';
-        user = await db.createUser(email, '', nombre, apellido, 'client');
-        if (user.role === 'client') {
-          const clients = await db.getClients('', 'all');
-          const existing = clients.find(c => c.email === email);
-          if (!existing) {
+        try {
+          user = await db.createUser(email, '', nombre, apellido, 'client');
+        } catch (e) {
+          user = await db.findUserByEmail(email);
+        }
+        if (user) {
+          try {
             await db.createClient({ nombre, apellido, email, telefono: '', pasaporte: '', estado: 'proceso' });
-          }
+          } catch (e) {}
         }
       }
+      if (!user) return done(null, false, { message: 'No se pudo crear la cuenta.' });
       done(null, user);
     } catch (err) {
       done(err, null);
