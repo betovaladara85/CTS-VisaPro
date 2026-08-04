@@ -5,8 +5,8 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const https = require('https');
+const http = require('http');
 const XLSX = require('xlsx');
 const db = require('./db');
 
@@ -31,37 +31,27 @@ app.use('/uploads', express.static(uploadsDir));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// ---------- Passport Google OAuth ----------
-if (process.env.GOOGLE_CLIENT_ID) {
-  passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback'
-  }, async (accessToken, refreshToken, profile, done) => {
-    try {
-      const email = profile.emails[0].value;
-      let user = await db.findUserByEmail(email);
-      if (!user) {
-        const nombre = profile.displayName || profile.name?.givenName || email.split('@')[0];
-        const apellido = profile.name?.familyName || '';
-        try {
-          user = await db.createUser(email, 'google-oauth', nombre, apellido, 'client');
-        } catch (e) {
-          user = await db.findUserByEmail(email);
-        }
-      }
-      if (!user) return done(null, false, { message: 'No se pudo crear la cuenta.' });
-      const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, process.env.JWT_SECRET || 'visapro-secret-key-change-in-production', { expiresIn: '24h' });
-      done(null, { ...user, _token: token });
-    } catch (err) {
-      done(err, null);
-    }
-  }));
-  passport.serializeUser((user, done) => done(null, user.id));
-  passport.deserializeUser(async (id, done) => {
-    try { done(null, { id }); } catch (err) { done(err, null); }
+// ---------- Google OAuth Config ----------
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback';
+function httpsGet(url) {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith('https') ? https : http;
+    mod.get(url, r => { let d = ''; r.on('data', c => d += c); r.on('end', () => resolve(JSON.parse(d))); }).on('error', reject);
   });
-  app.use(passport.initialize());
+}
+function httpsPost(url, body, headers) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const mod = u.protocol === 'https:' ? https : http;
+    const req = mod.request({ hostname: u.hostname, path: u.pathname + u.search, method: 'POST', headers }, res => {
+      let d = ''; res.on('data', c => d += c); res.on('end', () => resolve(JSON.parse(d)));
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
 }
 
 // ---------- Auth Middleware ----------
@@ -110,28 +100,58 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/logout', (req, res) => { res.clearCookie('token'); res.redirect('/login'); });
 
-// Google OAuth routes
-app.get('/auth/google', (req, res, next) => {
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    return res.redirect('/login?error=google_not_configured');
-  }
-  passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' })(req, res, next);
+// Google OAuth routes (manual, no passport)
+app.get('/auth/google', (req, res) => {
+  if (!GOOGLE_CLIENT_ID) return res.redirect('/login?error=google_not_configured');
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_CALLBACK_URL,
+    response_type: 'code',
+    scope: 'openid email profile',
+    prompt: 'select_account'
+  });
+  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' + params.toString());
 });
 
-app.get('/auth/google/callback', (req, res, next) => {
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    return res.redirect('/login?error=google_not_configured');
-  }
-  passport.authenticate('google', { failureRedirect: '/login?error=no_account' }, (err, user, info) => {
-    if (err || !user) {
-      return res.redirect('/login?error=' + encodeURIComponent(info?.message || 'no_account'));
+app.get('/auth/google/callback', async (req, res) => {
+  try {
+    const { code, error } = req.query;
+    if (error || !code) return res.redirect('/login?error=' + encodeURIComponent(error || 'no_code'));
+
+    const tokenRes = await httpsPost('https://oauth2.googleapis.com/token', new URLSearchParams({
+      code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
+      redirect_uri: GOOGLE_CALLBACK_URL, grant_type: 'authorization_code'
+    }).toString(), { 'Content-Type': 'application/x-www-form-urlencoded' });
+
+    if (tokenRes.error) {
+      console.error('Google token error:', tokenRes);
+      return res.redirect('/login?error=' + encodeURIComponent(tokenRes.error_description || tokenRes.error));
     }
-    const token = user._token || jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
-    delete user._token;
+
+    const profileRes = await httpsGet('https://www.googleapis.com/oauth2/v3/userinfo?access_token=' + tokenRes.access_token);
+    const email = profileRes.email;
+    if (!email) return res.redirect('/login?error=no_email');
+
+    let user = await db.findUserByEmail(email);
+    if (!user) {
+      const nombre = profileRes.name || email.split('@')[0];
+      const apellido = profileRes.family_name || '';
+      try {
+        user = await db.createUser(email, 'google-oauth-' + Date.now(), nombre, apellido, 'client');
+      } catch (e) {
+        user = await db.findUserByEmail(email);
+      }
+      if (!user) return res.redirect('/login?error=no_account');
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
     res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
     if (user.role === 'admin') return res.redirect('/admin');
     return res.redirect('/cliente');
-  })(req, res, next);
+  } catch (err) {
+    console.error('Google OAuth callback error:', err);
+    return res.redirect('/login?error=' + encodeURIComponent(err.message));
+  }
 });
 
 app.get('/api/me', (req, res) => {
