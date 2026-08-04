@@ -42,7 +42,9 @@ async function migratePostgres() {
     )
   `);
   await pool.query(`
-  DROP TABLE IF EXISTS clients CASCADE;
+      DROP TABLE IF EXISTS clients CASCADE;
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS clients (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
