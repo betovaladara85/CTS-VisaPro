@@ -184,18 +184,6 @@ app.post('/api/admin/checklist', authMiddleware('admin'), async (req, res) => {
 app.get('/api/admin/checklist', authMiddleware('admin'), async (req, res) => {
   res.json(await db.getChecklist());
 });
-
-// Admin: cotizaciones del trío
-app.get('/admin/cotizaciones', authMiddleware('admin'), async (req, res) => {
-  const cotizaciones = await db.getCotizaciones();
-  res.json(cotizaciones);
-});
-
-app.put('/api/admin/cotizaciones/:id/leer', authMiddleware('admin'), async (req, res) => {
-  await db.marcarCotizacionLeida(req.params.id);
-  res.json({ success: true });
-});
-
 // WHATSAPP LOG
 app.post('/api/admin/whatsapp/log', authMiddleware('admin'), async (req, res) => {
   const { client_id, template_id, message } = req.body;
