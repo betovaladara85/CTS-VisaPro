@@ -30,6 +30,7 @@ app.use('/uploads', express.static(uploadsDir));
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.set('trust proxy', 1);
 
 // ---------- Google OAuth Config ----------
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -65,7 +66,7 @@ function authMiddleware(role) {
       if (role && decoded.role !== role) return res.redirect('/login');
       next();
     } catch {
-      res.clearCookie('token');
+      res.clearCookie('token', { path: '/' });
       res.redirect('/login');
     }
   };
@@ -94,13 +95,25 @@ app.post('/api/login', async (req, res) => {
     return res.status(401).json({ error: 'Email o contraseña incorrectos' });
   }
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
-  res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
+  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: isSecure });
   res.json({ success: true, role: user.role });
 });
 
-app.get('/logout', (req, res) => { res.clearCookie('token'); res.redirect('/login'); });
+app.get('/logout', (req, res) => { res.clearCookie('token', { path: '/' }); res.redirect('/login'); });
 
 // Google OAuth routes (manual, no passport)
+app.get('/auth/debug', (req, res) => {
+  res.json({
+    cookies: req.cookies,
+    headers: { proto: req.headers['x-forwarded-proto'], host: req.headers.host },
+    secure: req.secure,
+    env_client_id: !!GOOGLE_CLIENT_ID,
+    env_client_secret: !!GOOGLE_CLIENT_SECRET,
+    env_callback: GOOGLE_CALLBACK_URL,
+    jwt_secret_set: JWT_SECRET !== 'visapro-secret-key-change-in-production'
+  });
+});
 app.get('/auth/google', (req, res) => {
   if (!GOOGLE_CLIENT_ID) return res.redirect('/login?error=google_not_configured');
   const params = new URLSearchParams({
@@ -145,7 +158,8 @@ app.get('/auth/google/callback', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
-    res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: isSecure });
     if (user.role === 'admin') return res.redirect('/admin');
     return res.redirect('/cliente');
   } catch (err) {
