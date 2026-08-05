@@ -204,7 +204,8 @@ app.get('/auth/google/callback', (req, res, next) => {
     req.logIn(user, (err) => {
       console.log('req.logIn result:', { err: err?.message, userId: user.id });
       if (err) return next(err);
-      // Force session save
+      // Force session save with explicit user
+      req.session.user = { id: user.id, email: user.email, role: user.role, nombre: user.nombre };
       req.session.save((err) => {
         if (err) return next(err);
         // Also issue JWT cookie for API compatibility
