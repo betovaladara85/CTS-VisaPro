@@ -1,6 +1,6 @@
 {
   "name": "cts-visapro",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CTS - Certified Translation & Visa Services",
   "main": "server.js",
   "engines": {
