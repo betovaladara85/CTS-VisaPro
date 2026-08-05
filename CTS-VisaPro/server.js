@@ -204,12 +204,16 @@ app.get('/auth/google/callback', (req, res, next) => {
     req.logIn(user, (err) => {
       console.log('req.logIn result:', { err: err?.message, userId: user.id });
       if (err) return next(err);
-      // Also issue JWT cookie for API compatibility
-      const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
-      res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: true });
-      console.log('Redirecting to:', user.role === 'admin' ? '/admin' : '/cliente');
-      if (user.role === 'admin') return res.redirect('/admin');
-      return res.redirect('/cliente');
+      // Force session save
+      req.session.save((err) => {
+        if (err) return next(err);
+        // Also issue JWT cookie for API compatibility
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
+        res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: true });
+        console.log('Redirecting to:', user.role === 'admin' ? '/admin' : '/cliente');
+        if (user.role === 'admin') return res.redirect('/admin');
+        return res.redirect('/cliente');
+      });
     });
   })(req, res, next);
 });
