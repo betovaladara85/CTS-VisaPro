@@ -186,6 +186,8 @@ app.get('/auth/debug', (req, res) => {
   res.json({
     cookies: req.cookies,
     session: req.session ? 'present' : 'missing',
+    sessionID: req.sessionID || 'none',
+    sessionData: req.session ? { ...req.session, cookie: req.session.cookie } : null,
     user: req.user || null,
     isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
     headers: { proto: req.headers['x-forwarded-proto'], host: req.headers.host },
