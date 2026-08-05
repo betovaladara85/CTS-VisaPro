@@ -179,12 +179,27 @@ app.get('/auth/google/callback', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
-    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-    console.log('Google OAuth: setting cookie, secure=', isSecure);
-    res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'none', path: '/', secure: true });
-    console.log('Google OAuth: redirecting to', user.role === 'admin' ? '/admin' : '/cliente');
-    if (user.role === 'admin') return res.redirect('/admin');
-    return res.redirect('/cliente');
+    console.log('Google OAuth: setting cookie');
+    res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: true });
+    console.log('Google OAuth: cookie set, redirecting to', user.role === 'admin' ? '/admin' : '/cliente');
+    
+    // Usar HTML con meta refresh para asegurar que el navegador procese la cookie
+    const redirectUrl = user.role === 'admin' ? '/admin' : '/cliente';
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+          <title>Redirigiendo...</title>
+          <style>body{font-family:system-ui;text-align:center;padding:50px;background:#FAF8F5;color:#2C1810}</style>
+        </head>
+        <body>
+          <p>Autenticación completada. Redirigiendo...</p>
+          <script>window.location.href = "${redirectUrl}";</script>
+        </body>
+      </html>
+    `);
   } catch (err) {
     console.error('Google OAuth callback error:', err);
     return res.redirect('/login?error=' + encodeURIComponent(err.message));
