@@ -179,12 +179,30 @@ app.get('/auth/google/callback', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
-    console.log('Google OAuth: setting cookie');
-    // sameSite: 'none' + secure: true para cross-site redirect desde Google
-    res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'none', path: '/', secure: true });
-    console.log('Google OAuth: cookie set, redirecting to', user.role === 'admin' ? '/admin' : '/cliente');
-    if (user.role === 'admin') return res.redirect('/admin');
-    return res.redirect('/cliente');
+    console.log('Google OAuth: generated token for user', user.id);
+    
+    // Devolver HTML que setea la cookie via JS y redirige (evita problemas SameSite en redirect 302)
+    const redirectUrl = user.role === 'admin' ? '/admin' : '/cliente';
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Completando autenticación...</title>
+          <style>body{font-family:system-ui;text-align:center;padding:50px;background:#FAF8F5;color:#2C1810}</style>
+        </head>
+        <body>
+          <p>Autenticación exitosa. Redirigiendo...</p>
+          <script>
+            // Setea cookie via JS (más fiable en cross-site)
+            document.cookie = "token=${token}; path=/; max-age=86400; secure; samesite=lax";
+            // Redirect tras breve delay para asegurar que la cookie se procese
+            setTimeout(() => { window.location.href = "${redirectUrl}"; }, 100);
+          </script>
+          <noscript><meta http-equiv="refresh" content="1;url=${redirectUrl}"></noscript>
+        </body>
+      </html>
+    `);
   } catch (err) {
     console.error('Google OAuth callback error:', err);
     return res.redirect('/login?error=' + encodeURIComponent(err.message));
