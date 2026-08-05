@@ -97,6 +97,17 @@ async function migratePostgres() {
       text TEXT NOT NULL
     )
   `);
+  // Session table for connect-pg-simple
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "session" (
+      sid VARCHAR NOT NULL COLLATE "default",
+      sess JSON NOT NULL,
+      expire TIMESTAMP(6) NOT NULL
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" (expire)
+  `);
   const { rows: tmplCount } = await pool.query('SELECT COUNT(*) FROM templates');
   if (parseInt(tmplCount[0].count) === 0) {
     for (const t of DEFAULT_TEMPLATES) {
