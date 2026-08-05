@@ -123,16 +123,23 @@ function authMiddleware(role) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
-        if (role && decoded.role !== role) return res.redirect('/login');
+        if (role && decoded.role !== role) {
+          if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'Forbidden' });
+          return res.redirect('/login');
+        }
         return next();
       } catch {}
     }
     // Fallback to session (for browser navigation)
     if (req.isAuthenticated && req.isAuthenticated()) {
       req.user = { id: req.user.id, email: req.user.email, role: req.user.role, nombre: req.user.nombre };
-      if (role && req.user.role !== role) return res.redirect('/login');
+      if (role && req.user.role !== role) {
+        if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'Forbidden' });
+        return res.redirect('/login');
+      }
       return next();
     }
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'No autenticado' });
     return res.redirect('/login');
   };
 }
