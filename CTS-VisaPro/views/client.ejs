@@ -178,11 +178,11 @@
 
     async function loadCase() {
       try {
-        const res = await fetch('/api/client/mi-caso');
+        const res = await fetch('/api/client/mi-caso', { credentials: 'include' });
         if (!res.ok) { window.location.href = '/login'; return; }
         const data = await res.json();
         render(data);
-        fetch('/api/client/mi-caso/visto', { method: 'POST' }).catch(() => {});
+        fetch('/api/client/mi-caso/visto', { method: 'POST', credentials: 'include' }).catch(() => {});
       } catch {
         document.getElementById('app').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error al cargar tu información</p></div>';
       }

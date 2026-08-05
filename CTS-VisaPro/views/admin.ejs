@@ -565,7 +565,11 @@
 
   async function api(url, opts = {}) {
     try {
-      const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      const res = await fetch(url, { 
+        headers: { 'Content-Type': 'application/json' }, 
+        credentials: 'include',
+        ...opts 
+      });
       if (res.redirected) { window.location.href = res.url; return null; }
       if (opts.download) return res;
       return res.json();
