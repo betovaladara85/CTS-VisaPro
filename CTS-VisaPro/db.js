@@ -141,6 +141,14 @@ async function findUserByEmail(email) {
   return loadJSON().users.find(u => u.email === email) || null;
 }
 
+async function findUserById(id) {
+  if (usePostgres) {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    return rows[0] || null;
+  }
+  return loadJSON().users.find(u => u.id === id) || null;
+}
+
 async function createUser(email, password, nombre, apellido, role) {
   if (usePostgres) {
     const { rows } = await pool.query(

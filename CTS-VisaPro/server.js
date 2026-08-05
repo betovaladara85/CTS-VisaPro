@@ -5,14 +5,18 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const https = require('https');
-const http = require('http');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const session = require('express-session');
+const PgSession = require('connect-pg-simple')(session);
 const XLSX = require('xlsx');
 const db = require('./db');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'visapro-secret-key-change-in-production';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'visapro-session-secret-change-in-production';
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -32,56 +36,82 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.set('trust proxy', 1);
 
-// ---------- Google OAuth Config ----------
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback';
-function httpsGet(url, headers = {}) {
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith('https') ? https : http;
-    const u = new URL(url);
-    mod.get({ hostname: u.hostname, path: u.pathname + u.search, headers }, r => {
-      let d = ''; r.on('data', c => d += c); r.on('end', () => {
-        try { resolve(JSON.parse(d)); } catch { resolve({ error: 'invalid_json', raw: d }); }
-      });
-    }).on('error', reject);
-  });
-}
-function httpsPost(url, body, headers) {
-  return new Promise((resolve, reject) => {
-    const u = new URL(url);
-    const mod = u.protocol === 'https:' ? https : http;
-    const req = mod.request({ hostname: u.hostname, path: u.pathname + u.search, method: 'POST', headers }, res => {
-      let d = ''; res.on('data', c => d += c); res.on('end', () => {
-        try { resolve(JSON.parse(d)); } catch { resolve({ error: 'invalid_json', raw: d }); }
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
+// ---------- Session + Passport ----------
+const pgPool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
+
+app.use(session({
+  store: pgPool ? new PgSession({ pool: pgPool, tableName: 'session' }) : new session.MemoryStore(),
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'lax',
+    secure: true,
+    path: '/'
+  }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await db.findUserById(id);
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
+});
+
+if (process.env.GOOGLE_CLIENT_ID) {
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback'
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      const email = profile.emails[0].value;
+      let user = await db.findUserByEmail(email);
+      if (!user) {
+        const nombre = profile.displayName || profile.name?.givenName || email.split('@')[0];
+        const apellido = profile.name?.familyName || '';
+        try {
+          user = await db.createUser(email, 'google-oauth-' + Date.now(), nombre, apellido, 'client');
+        } catch (e) {
+          user = await db.findUserByEmail(email);
+        }
+      }
+      if (!user) return done(null, false, { message: 'No se pudo crear la cuenta.' });
+      return done(null, user);
+    } catch (err) {
+      return done(err, null);
+    }
+  }));
 }
 
 // ---------- Auth Middleware ----------
 function authMiddleware(role) {
   return (req, res, next) => {
+    // Check JWT cookie first (for API calls)
     const token = req.cookies.token;
-    console.log('authMiddleware:', role, 'token:', token ? 'present' : 'missing', 'cookie header:', req.headers.cookie);
-    if (!token) return res.redirect('/login');
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      console.log('authMiddleware: JWT verified, user:', decoded.email, 'role:', decoded.role);
-      req.user = decoded;
-      if (role && decoded.role !== role) {
-        console.log('authMiddleware: role mismatch, expected:', role, 'got:', decoded.role);
-        return res.redirect('/login');
-      }
-      next();
-    } catch (err) {
-      console.error('authMiddleware: JWT verify failed:', err.message);
-      res.clearCookie('token', { path: '/' });
-      res.redirect('/login');
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        if (role && decoded.role !== role) return res.redirect('/login');
+        return next();
+      } catch {}
     }
+    // Fallback to session (for browser navigation)
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      req.user = { id: req.user.id, email: req.user.email, role: req.user.role, nombre: req.user.nombre };
+      if (role && req.user.role !== role) return res.redirect('/login');
+      return next();
+    }
+    return res.redirect('/login');
   };
 }
 
@@ -110,141 +140,60 @@ app.post('/api/login', async (req, res) => {
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
   const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
   res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: isSecure });
+  // Also establish session
+  req.login(user, (err) => {
+    if (err) console.error('Session login error:', err);
+  });
   res.json({ success: true, role: user.role });
 });
 
-app.get('/logout', (req, res) => { res.clearCookie('token', { path: '/' }); res.redirect('/login'); });
+app.get('/logout', (req, res) => { 
+  res.clearCookie('token', { path: '/' }); 
+  req.logout(() => {});
+  res.redirect('/login'); 
+});
 
-// Google OAuth routes (manual, no passport)
+// Google OAuth routes (Passport)
+app.get('/auth/google', (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.redirect('/login?error=google_not_configured');
+  }
+  passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' })(req, res, next);
+});
+
+app.get('/auth/google/callback', (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.redirect('/login?error=google_not_configured');
+  }
+  passport.authenticate('google', { failureRedirect: '/login?error=no_account' }, (err, user, info) => {
+    if (err || !user) {
+      return res.redirect('/login?error=' + encodeURIComponent(info?.message || 'no_account'));
+    }
+    req.logIn(user, (err) => {
+      if (err) return next(err);
+      // Also issue JWT cookie for API compatibility
+      const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
+      res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: true });
+      if (user.role === 'admin') return res.redirect('/admin');
+      return res.redirect('/cliente');
+    });
+  })(req, res, next);
+});
+
+// Debug endpoint
 app.get('/auth/debug', (req, res) => {
   res.json({
     cookies: req.cookies,
+    session: req.session ? 'present' : 'missing',
+    user: req.user || null,
+    isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
     headers: { proto: req.headers['x-forwarded-proto'], host: req.headers.host },
     secure: req.secure,
-    env_client_id: !!GOOGLE_CLIENT_ID,
-    env_client_secret: !!GOOGLE_CLIENT_SECRET,
-    env_callback: GOOGLE_CALLBACK_URL,
+    env_client_id: !!process.env.GOOGLE_CLIENT_ID,
+    env_client_secret: !!process.env.GOOGLE_CLIENT_SECRET,
+    env_callback: process.env.GOOGLE_CALLBACK_URL,
     jwt_secret_set: JWT_SECRET !== 'visapro-secret-key-change-in-production'
   });
-});
-app.get('/auth/google', (req, res) => {
-  if (!GOOGLE_CLIENT_ID) return res.redirect('/login?error=google_not_configured');
-  const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: GOOGLE_CALLBACK_URL,
-    response_type: 'code',
-    scope: 'openid email profile',
-    prompt: 'select_account'
-  });
-  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' + params.toString());
-});
-
-app.get('/auth/google/callback', async (req, res) => {
-  try {
-    const { code, error } = req.query;
-    console.log('=== GOOGLE CALLBACK START ===', { code: !!code, error });
-    if (error || !code) {
-      console.log('Google OAuth: error or no code', { error, code });
-      return res.redirect('/login?error=' + encodeURIComponent(error || 'no_code'));
-    }
-
-    console.log('Google OAuth: exchanging code for token');
-    const tokenRes = await httpsPost('https://oauth2.googleapis.com/token', new URLSearchParams({
-      code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
-      redirect_uri: GOOGLE_CALLBACK_URL, grant_type: 'authorization_code'
-    }).toString(), { 'Content-Type': 'application/x-www-form-urlencoded' });
-
-    console.log('Google OAuth: token response', { error: tokenRes.error, hasAccessToken: !!tokenRes.access_token });
-    if (tokenRes.error) {
-      console.error('Google token error:', tokenRes);
-      return res.redirect('/login?error=' + encodeURIComponent(tokenRes.error_description || tokenRes.error));
-    }
-
-    console.log('Google OAuth: fetching user profile');
-    const profileRes = await httpsGet('https://www.googleapis.com/oauth2/v3/userinfo', {
-      'Authorization': 'Bearer ' + tokenRes.access_token
-    });
-    console.log('Google OAuth: profile response', profileRes);
-    
-    const email = profileRes.email;
-    if (!email) {
-      console.log('Google OAuth: no email in profile');
-      return res.redirect('/login?error=no_email');
-    }
-
-    let user = await db.findUserByEmail(email);
-    console.log('Google OAuth: existing user?', !!user);
-    if (!user) {
-      const nombre = profileRes.name || email.split('@')[0];
-      const apellido = profileRes.family_name || '';
-      try {
-        user = await db.createUser(email, 'google-oauth-' + Date.now(), nombre, apellido, 'client');
-        console.log('Google OAuth: created user', user.id);
-      } catch (e) {
-        console.log('Google OAuth: user create failed, finding existing', e.message);
-        user = await db.findUserByEmail(email);
-      }
-      if (!user) return res.redirect('/login?error=no_account');
-    }
-
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
-    console.log('Google OAuth: generated token for user', user.id, 'role:', user.role);
-    
-    // SETEA COOKIE DIRECTAMENTE EN LA RESPUESTA (Set-Cookie header)
-    // sameSite: 'lax' permite top-level navigation; secure: true en HTTPS
-    res.cookie('token', token, { 
-      httpOnly: true, 
-      maxAge: 24 * 60 * 60 * 1000, 
-      sameSite: 'lax', 
-      path: '/', 
-      secure: true 
-    });
-    console.log('Google OAuth: cookie set via Set-Cookie header');
-    
-    // Render HTML que hace redirect JS (no 302) - da tiempo al navegador a procesar cookie
-    const redirectUrl = user.role === 'admin' ? '/admin' : '/cliente';
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Completando autenticación...</title>
-          <style>
-            body{font-family:system-ui;text-align:center;padding:50px;background:#FAF8F5;color:#2C1810}
-            .spinner{border:3px solid #E8E0D8;border-top-color:#C4A265;border-radius:50%;width:32px;height:32px;animation:spin 1s linear infinite;margin:20px auto}
-            @keyframes spin{to{transform:rotate(360deg)}}
-          </style>
-        </head>
-        <body>
-          <p>Autenticación exitosa. Redirigiendo...</p>
-          <div class="spinner"></div>
-          <script>
-            // Pequeño delay para asegurar que Set-Cookie se procese antes del redirect
-            setTimeout(() => { window.location.href = '${redirectUrl}'; }, 200);
-          </script>
-          <noscript><meta http-equiv="refresh" content="1;url=${redirectUrl}"></noscript>
-        </body>
-      </html>
-    `);
-  } catch (err) {
-    console.error('Google OAuth callback error:', err);
-    return res.redirect('/login?error=' + encodeURIComponent(err.message));
-  }
-});
-
-// Fallback: endpoint same-origin para setear cookie via fetch si el método directo falla
-app.post('/api/auth/set-cookie', (req, res) => {
-  const { token } = req.body;
-  if (!token) return res.status(400).json({ error: 'No token' });
-  console.log('Setting HttpOnly cookie via same-origin fetch (fallback)');
-  res.cookie('token', token, { 
-    httpOnly: true, 
-    maxAge: 24 * 60 * 60 * 1000, 
-    sameSite: 'lax', 
-    path: '/', 
-    secure: true 
-  });
-  res.json({ success: true });
 });
 
 app.get('/api/me', (req, res) => {
