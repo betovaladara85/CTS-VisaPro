@@ -136,7 +136,7 @@ app.get('/auth/google', (req, res) => {
 app.get('/auth/google/callback', async (req, res) => {
   try {
     const { code, error } = req.query;
-    console.log('=== GOOGLE CALLBACK START ===', { code: !!code, error, query: req.query });
+    console.log('=== GOOGLE CALLBACK START ===', { code: !!code, error });
     if (error || !code) {
       console.log('Google OAuth: error or no code', { error, code });
       return res.redirect('/login?error=' + encodeURIComponent(error || 'no_code'));
@@ -184,46 +184,64 @@ app.get('/auth/google/callback', async (req, res) => {
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
     console.log('Google OAuth: generated token for user', user.id, 'role:', user.role);
     
-    // Configuración de cookie para cross-site redirect (Google → our domain)
-    // sameSite: 'lax' permite top-level navigation (redirect desde Google)
-    // secure: true requerido en HTTPS (Railway)
-    // path: '/' para toda la app
-    const cookieOptions = { 
-      httpOnly: true, 
-      maxAge: 24 * 60 * 60 * 1000, 
-      sameSite: 'lax', 
-      path: '/', 
-      secure: true 
-    };
-    console.log('Google OAuth: setting cookie with options', cookieOptions);
-    res.cookie('token', token, cookieOptions);
-    
+    // Render HTML que hace fetch POST a /api/auth/set-cookie (same-origin)
+    // Esto evita restricciones SameSite cross-site (Google → callback)
     const redirectUrl = user.role === 'admin' ? '/admin' : '/cliente';
-    console.log('Google OAuth: redirecting to', redirectUrl);
-    return res.redirect(redirectUrl);
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Completando autenticación...</title>
+          <style>
+            body{font-family:system-ui;text-align:center;padding:50px;background:#FAF8F5;color:#2C1810}
+            .spinner{border:3px solid #E8E0D8;border-top-color:#C4A265;border-radius:50%;width:32px;height:32px;animation:spin 1s linear infinite;margin:20px auto}
+            @keyframes spin{to{transform:rotate(360deg)}}
+          </style>
+        </head>
+        <body>
+          <p>Autenticación exitosa. Redirigiendo...</p>
+          <div class="spinner"></div>
+          <script>
+            (async () => {
+              try {
+                const res = await fetch('/api/auth/set-cookie', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ token: '${token.replace(/'/g, "\\'")}' })
+                });
+                if (!res.ok) throw new Error('Cookie set failed');
+                window.location.href = '${redirectUrl}';
+              } catch (e) {
+                console.error('OAuth cookie error:', e);
+                window.location.href = '/login?error=cookie_failed';
+              }
+            })();
+          </script>
+          <noscript><meta http-equiv="refresh" content="2;url=/login?error=no_js"></noscript>
+        </body>
+      </html>
+    `);
   } catch (err) {
     console.error('Google OAuth callback error:', err);
     return res.redirect('/login?error=' + encodeURIComponent(err.message));
   }
 });
 
-// Endpoint diagnóstico: verifica si cookie llega
-app.get('/api/auth/check-cookie', (req, res) => {
-  console.log('Check cookie:', req.cookies);
-  res.json({ 
-    hasToken: !!req.cookies.token, 
-    cookies: req.cookies,
-    headers: { cookie: req.headers.cookie }
-  });
-});
-
-// Endpoint para forzar seteo de cookie via JS (fallback)
+// Endpoint same-origin: setea cookie HttpOnly SIN restricciones SameSite
 app.post('/api/auth/set-cookie', (req, res) => {
-  const { token, redirect } = req.body;
+  const { token } = req.body;
   if (!token) return res.status(400).json({ error: 'No token' });
-  console.log('Setting HttpOnly cookie via same-origin fetch for redirect:', redirect);
-  res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: true });
-  res.json({ success: true, redirect });
+  console.log('Setting HttpOnly cookie via same-origin fetch');
+  res.cookie('token', token, { 
+    httpOnly: true, 
+    maxAge: 24 * 60 * 60 * 1000, 
+    sameSite: 'lax', 
+    path: '/', 
+    secure: true 
+  });
+  res.json({ success: true });
 });
 
 app.get('/api/me', (req, res) => {
