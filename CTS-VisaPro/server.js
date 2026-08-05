@@ -166,15 +166,20 @@ app.get('/auth/google/callback', (req, res, next) => {
   if (!process.env.GOOGLE_CLIENT_ID) {
     return res.redirect('/login?error=google_not_configured');
   }
+  console.log('=== GOOGLE CALLBACK ROUTE START ===', { query: req.query, sessionID: req.sessionID });
   passport.authenticate('google', { failureRedirect: '/login?error=no_account' }, (err, user, info) => {
+    console.log('=== PASSPORT CALLBACK ===', { err: err?.message, user: user?.id, info });
     if (err || !user) {
+      console.log('Passport auth failed:', err?.message, info?.message);
       return res.redirect('/login?error=' + encodeURIComponent(info?.message || 'no_account'));
     }
     req.logIn(user, (err) => {
+      console.log('req.logIn result:', { err: err?.message, userId: user.id });
       if (err) return next(err);
       // Also issue JWT cookie for API compatibility
       const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
       res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: true });
+      console.log('Redirecting to:', user.role === 'admin' ? '/admin' : '/cliente');
       if (user.role === 'admin') return res.redirect('/admin');
       return res.redirect('/cliente');
     });
