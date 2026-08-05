@@ -42,7 +42,7 @@ const pgPool = process.env.DATABASE_URL ? new Pool({ connectionString: process.e
 const PgSession = require('connect-pg-simple')(session);
 
 app.use(session({
-  store: pgPool ? new PgSession({ pool: pgPool, tableName: 'session', createTableIfMissing: false }).on('error', (err) => console.error('Session store error:', err)) : new session.MemoryStore(),
+  // Use MemoryStore temporarily; PostgreSQL session store needs debugging
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
