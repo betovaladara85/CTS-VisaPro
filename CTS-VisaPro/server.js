@@ -179,9 +179,9 @@ app.get('/auth/google/callback', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
-    console.log('Google OAuth: generated token for user', user.id);
+    console.log('Google OAuth: generated token for user', user.id, 'role:', user.role);
     
-    // Devolver HTML que setea la cookie via JS y redirige (evita problemas SameSite en redirect 302)
+    // Devolver HTML que hace POST a /api/auth/set-cookie (same-origin) para setear cookie HttpOnly
     const redirectUrl = user.role === 'admin' ? '/admin' : '/cliente';
     return res.send(`
       <!DOCTYPE html>
@@ -194,12 +194,20 @@ app.get('/auth/google/callback', async (req, res) => {
         <body>
           <p>Autenticación exitosa. Redirigiendo...</p>
           <script>
-            // Setea cookie via JS (más fiable en cross-site)
-            document.cookie = "token=${token}; path=/; max-age=86400; secure; samesite=lax";
-            // Redirect tras breve delay para asegurar que la cookie se procese
-            setTimeout(() => { window.location.href = "${redirectUrl}"; }, 100);
+            fetch('/api/auth/set-cookie', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ token: '${token}', redirect: '${redirectUrl}' })
+            }).then(r => {
+              if (r.ok) window.location.href = '${redirectUrl}';
+              else throw new Error('Cookie set failed');
+            }).catch(e => {
+              console.error(e);
+              window.location.href = '/login?error=cookie_failed';
+            });
           </script>
-          <noscript><meta http-equiv="refresh" content="1;url=${redirectUrl}"></noscript>
+          <noscript><meta http-equiv="refresh" content="2;url=/login?error=no_js"></noscript>
         </body>
       </html>
     `);
@@ -207,6 +215,15 @@ app.get('/auth/google/callback', async (req, res) => {
     console.error('Google OAuth callback error:', err);
     return res.redirect('/login?error=' + encodeURIComponent(err.message));
   }
+});
+
+// Endpoint para setear cookie HttpOnly via fetch (same-origin, sin restricciones SameSite)
+app.post('/api/auth/set-cookie', (req, res) => {
+  const { token, redirect } = req.body;
+  if (!token) return res.status(400).json({ error: 'No token' });
+  console.log('Setting HttpOnly cookie via same-origin fetch');
+  res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: true });
+  res.json({ success: true, redirect });
 });
 
 app.get('/api/me', (req, res) => {
