@@ -136,6 +136,7 @@ app.get('/auth/google', (req, res) => {
 app.get('/auth/google/callback', async (req, res) => {
   try {
     const { code, error } = req.query;
+    console.log('=== GOOGLE CALLBACK START ===', { code: !!code, error, query: req.query });
     if (error || !code) {
       console.log('Google OAuth: error or no code', { error, code });
       return res.redirect('/login?error=' + encodeURIComponent(error || 'no_code'));
@@ -147,6 +148,7 @@ app.get('/auth/google/callback', async (req, res) => {
       redirect_uri: GOOGLE_CALLBACK_URL, grant_type: 'authorization_code'
     }).toString(), { 'Content-Type': 'application/x-www-form-urlencoded' });
 
+    console.log('Google OAuth: token response', { error: tokenRes.error, hasAccessToken: !!tokenRes.access_token });
     if (tokenRes.error) {
       console.error('Google token error:', tokenRes);
       return res.redirect('/login?error=' + encodeURIComponent(tokenRes.error_description || tokenRes.error));
@@ -165,6 +167,7 @@ app.get('/auth/google/callback', async (req, res) => {
     }
 
     let user = await db.findUserByEmail(email);
+    console.log('Google OAuth: existing user?', !!user);
     if (!user) {
       const nombre = profileRes.name || email.split('@')[0];
       const apellido = profileRes.family_name || '';
@@ -181,47 +184,44 @@ app.get('/auth/google/callback', async (req, res) => {
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
     console.log('Google OAuth: generated token for user', user.id, 'role:', user.role);
     
-    // Devolver HTML que hace POST a /api/auth/set-cookie (same-origin) para setear cookie HttpOnly
+    // Configuración de cookie para cross-site redirect (Google → our domain)
+    // sameSite: 'lax' permite top-level navigation (redirect desde Google)
+    // secure: true requerido en HTTPS (Railway)
+    // path: '/' para toda la app
+    const cookieOptions = { 
+      httpOnly: true, 
+      maxAge: 24 * 60 * 60 * 1000, 
+      sameSite: 'lax', 
+      path: '/', 
+      secure: true 
+    };
+    console.log('Google OAuth: setting cookie with options', cookieOptions);
+    res.cookie('token', token, cookieOptions);
+    
     const redirectUrl = user.role === 'admin' ? '/admin' : '/cliente';
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Completando autenticación...</title>
-          <style>body{font-family:system-ui;text-align:center;padding:50px;background:#FAF8F5;color:#2C1810}</style>
-        </head>
-        <body>
-          <p>Autenticación exitosa. Redirigiendo...</p>
-          <script>
-            fetch('/api/auth/set-cookie', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ token: '${token}', redirect: '${redirectUrl}' })
-            }).then(r => {
-              if (r.ok) window.location.href = '${redirectUrl}';
-              else throw new Error('Cookie set failed');
-            }).catch(e => {
-              console.error(e);
-              window.location.href = '/login?error=cookie_failed';
-            });
-          </script>
-          <noscript><meta http-equiv="refresh" content="2;url=/login?error=no_js"></noscript>
-        </body>
-      </html>
-    `);
+    console.log('Google OAuth: redirecting to', redirectUrl);
+    return res.redirect(redirectUrl);
   } catch (err) {
     console.error('Google OAuth callback error:', err);
     return res.redirect('/login?error=' + encodeURIComponent(err.message));
   }
 });
 
-// Endpoint para setear cookie HttpOnly via fetch (same-origin, sin restricciones SameSite)
+// Endpoint diagnóstico: verifica si cookie llega
+app.get('/api/auth/check-cookie', (req, res) => {
+  console.log('Check cookie:', req.cookies);
+  res.json({ 
+    hasToken: !!req.cookies.token, 
+    cookies: req.cookies,
+    headers: { cookie: req.headers.cookie }
+  });
+});
+
+// Endpoint para forzar seteo de cookie via JS (fallback)
 app.post('/api/auth/set-cookie', (req, res) => {
   const { token, redirect } = req.body;
   if (!token) return res.status(400).json({ error: 'No token' });
-  console.log('Setting HttpOnly cookie via same-origin fetch');
+  console.log('Setting HttpOnly cookie via same-origin fetch for redirect:', redirect);
   res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: true });
   res.json({ success: true, redirect });
 });
