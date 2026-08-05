@@ -40,7 +40,7 @@ app.set('trust proxy', 1);
 const pgPool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
 
 app.use(session({
-  store: pgPool ? new PgSession({ pool: pgPool, tableName: 'session' }) : new session.MemoryStore(),
+  // MemoryStore para testing; en producción usar connect-pg-simple con tabla session
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: true,
