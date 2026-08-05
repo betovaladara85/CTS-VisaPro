@@ -73,21 +73,42 @@ if (process.env.GOOGLE_CLIENT_ID) {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback'
   }, async (accessToken, refreshToken, profile, done) => {
+    console.log('=== PASSPORT GOOGLE STRATEGY ===', { 
+      hasAccessToken: !!accessToken, 
+      hasRefreshToken: !!refreshToken,
+      profileId: profile.id,
+      emails: profile.emails?.map(e => e.value),
+      displayName: profile.displayName
+    });
     try {
-      const email = profile.emails[0].value;
+      const email = profile.emails?.[0]?.value;
+      if (!email) {
+        console.log('No email in profile');
+        return done(null, false, { message: 'No email from Google' });
+      }
+      console.log('Looking up user by email:', email);
       let user = await db.findUserByEmail(email);
+      console.log('Existing user:', user ? 'found' : 'not found');
       if (!user) {
         const nombre = profile.displayName || profile.name?.givenName || email.split('@')[0];
         const apellido = profile.name?.familyName || '';
+        console.log('Creating new user:', { email, nombre, apellido });
         try {
           user = await db.createUser(email, 'google-oauth-' + Date.now(), nombre, apellido, 'client');
+          console.log('Created user:', user.id);
         } catch (e) {
+          console.log('Create user failed, finding existing:', e.message);
           user = await db.findUserByEmail(email);
         }
       }
-      if (!user) return done(null, false, { message: 'No se pudo crear la cuenta.' });
+      if (!user) {
+        console.log('No user after create/find');
+        return done(null, false, { message: 'No se pudo crear la cuenta.' });
+      }
+      console.log('Returning user:', user.id);
       return done(null, user);
     } catch (err) {
+      console.error('Strategy error:', err);
       return done(err, null);
     }
   }));
