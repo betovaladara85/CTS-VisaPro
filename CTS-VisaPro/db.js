@@ -501,4 +501,4 @@ async function deleteTemplate(id) {
   }
 }
 
-module.exports = { init, findUserByEmail, createUser, updateUserPassword, getClients, getClient, createClient, updateClient, updateClientStatus, deleteClient, getStats, updateClientLastView, getMonthlyStats, logWhatsApp, getWhatsAppLogs, saveChecklist, getChecklist, getClientByUserId, getTemplates, saveTemplate, createTemplate, deleteTemplate };
+module.exports = { init, findUserByEmail, findUserById, createUser, updateUserPassword, getClients, getClient, createClient, updateClient, updateClientStatus, deleteClient, getStats, updateClientLastView, getMonthlyStats, logWhatsApp, getWhatsAppLogs, saveChecklist, getChecklist, getClientByUserId, getTemplates, saveTemplate, createTemplate, deleteTemplate };
