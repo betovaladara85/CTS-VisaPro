@@ -39,11 +39,14 @@ app.set('trust proxy', 1);
 // ---------- Session + Passport ----------
 const pgPool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
 
+const PgSession = require('connect-pg-simple')(session);
+const pgPool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
+
 app.use(session({
-  // MemoryStore para testing; en producción usar connect-pg-simple con tabla session
+  store: pgPool ? new PgSession({ pool: pgPool, tableName: 'session', createTableIfMissing: true }) : new session.MemoryStore(),
   secret: SESSION_SECRET,
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   touch: true,
   cookie: {
     httpOnly: true,
