@@ -43,7 +43,8 @@ app.use(session({
   store: pgPool ? new PgSession({ pool: pgPool, tableName: 'session' }) : new session.MemoryStore(),
   secret: SESSION_SECRET,
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true,
+  touch: true,
   cookie: {
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
