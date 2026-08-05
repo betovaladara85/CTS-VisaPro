@@ -66,13 +66,19 @@ function httpsPost(url, body, headers) {
 function authMiddleware(role) {
   return (req, res, next) => {
     const token = req.cookies.token;
+    console.log('authMiddleware:', role, 'token:', token ? 'present' : 'missing', 'cookie header:', req.headers.cookie);
     if (!token) return res.redirect('/login');
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
+      console.log('authMiddleware: JWT verified, user:', decoded.email, 'role:', decoded.role);
       req.user = decoded;
-      if (role && decoded.role !== role) return res.redirect('/login');
+      if (role && decoded.role !== role) {
+        console.log('authMiddleware: role mismatch, expected:', role, 'got:', decoded.role);
+        return res.redirect('/login');
+      }
       next();
-    } catch {
+    } catch (err) {
+      console.error('authMiddleware: JWT verify failed:', err.message);
       res.clearCookie('token', { path: '/' });
       res.redirect('/login');
     }
