@@ -36,10 +36,15 @@ app.set('trust proxy', 1);
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback';
-function httpsGet(url) {
+function httpsGet(url, headers = {}) {
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http;
-    mod.get(url, r => { let d = ''; r.on('data', c => d += c); r.on('end', () => resolve(JSON.parse(d))); }).on('error', reject);
+    const u = new URL(url);
+    mod.get({ hostname: u.hostname, path: u.pathname + u.search, headers }, r => {
+      let d = ''; r.on('data', c => d += c); r.on('end', () => {
+        try { resolve(JSON.parse(d)); } catch { resolve({ error: 'invalid_json', raw: d }); }
+      });
+    }).on('error', reject);
   });
 }
 function httpsPost(url, body, headers) {
@@ -47,7 +52,9 @@ function httpsPost(url, body, headers) {
     const u = new URL(url);
     const mod = u.protocol === 'https:' ? https : http;
     const req = mod.request({ hostname: u.hostname, path: u.pathname + u.search, method: 'POST', headers }, res => {
-      let d = ''; res.on('data', c => d += c); res.on('end', () => resolve(JSON.parse(d)));
+      let d = ''; res.on('data', c => d += c); res.on('end', () => {
+        try { resolve(JSON.parse(d)); } catch { resolve({ error: 'invalid_json', raw: d }); }
+      });
     });
     req.on('error', reject);
     req.write(body);
@@ -129,8 +136,12 @@ app.get('/auth/google', (req, res) => {
 app.get('/auth/google/callback', async (req, res) => {
   try {
     const { code, error } = req.query;
-    if (error || !code) return res.redirect('/login?error=' + encodeURIComponent(error || 'no_code'));
+    if (error || !code) {
+      console.log('Google OAuth: error or no code', { error, code });
+      return res.redirect('/login?error=' + encodeURIComponent(error || 'no_code'));
+    }
 
+    console.log('Google OAuth: exchanging code for token');
     const tokenRes = await httpsPost('https://oauth2.googleapis.com/token', new URLSearchParams({
       code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
       redirect_uri: GOOGLE_CALLBACK_URL, grant_type: 'authorization_code'
@@ -141,9 +152,17 @@ app.get('/auth/google/callback', async (req, res) => {
       return res.redirect('/login?error=' + encodeURIComponent(tokenRes.error_description || tokenRes.error));
     }
 
-    const profileRes = await httpsGet('https://www.googleapis.com/oauth2/v3/userinfo?access_token=' + tokenRes.access_token);
+    console.log('Google OAuth: fetching user profile');
+    const profileRes = await httpsGet('https://www.googleapis.com/oauth2/v3/userinfo', {
+      'Authorization': 'Bearer ' + tokenRes.access_token
+    });
+    console.log('Google OAuth: profile response', profileRes);
+    
     const email = profileRes.email;
-    if (!email) return res.redirect('/login?error=no_email');
+    if (!email) {
+      console.log('Google OAuth: no email in profile');
+      return res.redirect('/login?error=no_email');
+    }
 
     let user = await db.findUserByEmail(email);
     if (!user) {
@@ -151,7 +170,9 @@ app.get('/auth/google/callback', async (req, res) => {
       const apellido = profileRes.family_name || '';
       try {
         user = await db.createUser(email, 'google-oauth-' + Date.now(), nombre, apellido, 'client');
+        console.log('Google OAuth: created user', user.id);
       } catch (e) {
+        console.log('Google OAuth: user create failed, finding existing', e.message);
         user = await db.findUserByEmail(email);
       }
       if (!user) return res.redirect('/login?error=no_account');
@@ -159,7 +180,9 @@ app.get('/auth/google/callback', async (req, res) => {
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, nombre: user.nombre }, JWT_SECRET, { expiresIn: '24h' });
     const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-    res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', path: '/', secure: isSecure });
+    console.log('Google OAuth: setting cookie, secure=', isSecure);
+    res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'none', path: '/', secure: true });
+    console.log('Google OAuth: redirecting to', user.role === 'admin' ? '/admin' : '/cliente');
     if (user.role === 'admin') return res.redirect('/admin');
     return res.redirect('/cliente');
   } catch (err) {
