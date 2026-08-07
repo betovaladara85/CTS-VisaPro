@@ -8,10 +8,8 @@ const multer = require('multer');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
-const PgSession = require('connect-pg-simple')(session);
 const XLSX = require('xlsx');
 const db = require('./db');
-const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,12 +35,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('trust proxy', 1);
 
 // ---------- Session + Passport ----------
-const pgPool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
-
-const PgSession = require('connect-pg-simple')(session);
-
 app.use(session({
-  store: pgPool ? new PgSession({ pool: pgPool, tableName: 'session', createTableIfMissing: false }) : new session.MemoryStore(),
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
